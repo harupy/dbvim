@@ -1,6 +1,6 @@
 import Vim from './Vim';
 import VimKeyMap from './VimKeyMap';
-import { enableFatCursor, disableFatCursor } from './cursorUtils';
+import { enableFatCursor, disableFatCursor } from './CodeMirrorUtils';
 
 (() => {
   const enterVimMode = cm => {
@@ -59,8 +59,6 @@ import { enableFatCursor, disableFatCursor } from './cursorUtils';
     // }
     window.setTimeout(enableFatCursor, 0);
   };
-
-  const keyBuffer = [];
 
   const onKeyUp = () => {
     // Find the cell being edited and update its CodeMirror Object
