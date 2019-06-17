@@ -16,16 +16,24 @@ import commandSearch from './commandSearch';
 */
 
 const toVimKey = key => {
+  if (key.charAt(0) === "'") {
+    return key.slice(1, -1);
+  }
+
   const isSingleChar = key => {
     return key.length === 1;
   };
 
-  const isSingleAlphabet = key => {
-    return isSingleChar(key) && /[a-zA-Z]/.test(key);
+  const isAlphabet = key => {
+    return /[a-zA-Z]/.test(key);
   };
 
-  if (isSingleAlphabet(key)) {
-    return key.toLowerCase();
+  if (isSingleChar(key)) {
+    if (isAlphabet) {
+      return key.toLowerCase();
+    } else {
+      return key;
+    }
   }
 
   // Process a key combination (e.g. Shift-M, Ctrl-E)
@@ -41,8 +49,8 @@ const toVimKey = key => {
 
     // Process Shift - <alphabet> combination
     if (modKey.toLowerCase() === 'shift') {
-      if (isSingleAlphabet(pieces[1])) {
-        return pieces[1].toUpperCase();
+      if (isSingleChar(normKey) && isAlphabet(normKey)) {
+        return normKey.toUpperCase();
       }
     }
   }
@@ -57,13 +65,12 @@ export default class VimKeyMap {
   }
 
   call = (key, cm) => {
-    console.log(key);
-
     // For a single alphabet (e.g. A, B, C), another key event is dispatched with "'<char>'"
     // This line is for ignoring the event.
-    if (key.charAt(0) === "'") {
-      return false;
+    if (key.length === 1) {
+      return key;
     }
+    console.log(key);
 
     const vimKey = toVimKey(key);
     console.log(vimKey);
@@ -110,34 +117,65 @@ export default class VimKeyMap {
     cmu.removeRange(cm, { from, to });
   };
 
-  processMotion = (cm, cmd) => {
+  processMotion = (_cm, cmd) => {
     const motions = {
-      moveByCharacters: (_cm, motionArgs) => {
-        const { line, ch } = _cm.getCursor();
-        const newCh = motionArgs.forward ? ch + 1 : ch - 1;
-        cm.setCursor({ line, ch: newCh });
+      moveByCharacters: (cm, motionArgs) => {
+        const cur = _cm.getCursor();
+        const { forward } = motionArgs;
+        if (!forward && cmu.isStartOfLine(cm) && !cmu.isFirstLine(cm)) {
+          const ch = cmu.getLineOffset(cm, -1).length;
+          return { line: cur.line - 1, ch };
+        } else if (forward && !cmu.isLastLine(cm) && cmu.isEndOfLine(cm)) {
+          return { line: cur.line + 1, ch: 0 };
+        } else {
+          const ch = motionArgs.forward ? cur.ch + 1 : cur.ch - 1;
+          return { line: cur.line, ch };
+        }
       },
 
-      moveByLines: (_cm, motionArgs) => {
-        const { line, ch } = _cm.getCursor();
+      moveByLines: (cm, motionArgs) => {
+        const { line, ch } = cm.getCursor();
         const newLine = motionArgs.forward ? line + 1 : line - 1;
-        cm.setCursor({ line: newLine, ch });
+        return { line: newLine, ch };
+      },
+
+      moveToStartOfLine: cm => {
+        const { line } = cm.getCursor();
+        return { line, ch: 0 };
+      },
+
+      moveToEndOfLine: cm => {
+        const { line } = cm.getCursor();
+        const ch = cmu.getLineLength(cm, line);
+        return { line, ch: ch > 0 ? ch - 1 : 0 };
+      },
+
+      moveToFirstNonBlank: cm => {
+        const { line } = cm.getCursor();
+        const ch = cmu.findFirstNonBlank(cm, line);
+        return { line, ch };
+      },
+
+      moveByParagraph: (cm, motionArgs) => {
+        const line = cmu.findParagraph(cm, motionArgs.forward);
+        return { line, ch: 0 };
       },
     };
-    motions[cmd.motion](cm, cmd.motionArgs);
+    const cur = motions[cmd.motion](_cm, cmd.motionArgs);
+    _cm.setCursor(cur);
     window.setTimeout(enableFatCursor, 0);
   };
 
-  processAction = (cm, cmd) => {
+  processAction = (_cm, cmd) => {
     const actions = {
-      newLineAndEnterInsertMode: (_cm, actionArgs) => {
+      newLineAndEnterInsertMode: (cm, actionArgs) => {
         const cur = cm.getCursor();
         if (cur.line === cm.firstLine() && !actionArgs.after) {
           // Special case for inserting newline before start of document.
           cm.replaceRange('\n', { line: cm.firstLine(), ch: 0 });
           cm.setCursor(cm.firstLine(), 0);
         } else {
-          const indent = cmu.getIndent(_cm);
+          const indent = cmu.getIndent(cm);
           const newCur = {
             line: actionArgs.after ? cur.line : cur.line - 1,
             ch: cm.getLine(cur.line).length,
@@ -145,25 +183,34 @@ export default class VimKeyMap {
           cm.setCursor(newCur);
           cm.replaceSelection('\n' + indent);
         }
-        this.enterInsertMode(_cm);
+        this.enterInsertMode(cm);
       },
-      enterInsertMode: (_cm, actionArgs) => {
+      enterInsertMode: (cm, actionArgs) => {
         if (actionArgs) {
-          if (actionArgs.insertAt === 'charAfter') {
-            console.log('actionArgs');
-
-            cmu.moveCursor(_cm, 1);
+          switch (actionArgs.insertAt) {
+            case 'charAfter':
+              cmu.moveCursor(cm, 1);
+              break;
+            case 'endOfLine':
+              cmu.moveToEndOfLine(cm);
+              break;
+            case 'firstNonBlank':
+              cmu.moveToFirstNonBlank(cm);
+              break;
+            default:
+              break;
           }
         }
-        this.enterInsertMode(_cm);
+        this.enterInsertMode(cm);
       },
     };
 
-    actions[cmd.action](cm, cmd.actionArgs);
+    actions[cmd.action](_cm, cmd.actionArgs);
   };
 
   processKeyNormal = (cm, key, context) => {
     const cmd = commandSearch(key, keyMap, context);
+    console.log(key);
     console.log(cmd);
     if (cmd) {
       switch (cmd.type) {
@@ -178,31 +225,5 @@ export default class VimKeyMap {
           return;
       }
     }
-
-    // Normal Mode
-    // if (key === 'h') {
-    //   window.setTimeout(enableFatCursor, 0);
-    //   return 'goCharLeft';
-    // } else if (key === 'l') {
-    //   window.setTimeout(enableFatCursor, 0);
-    //   return 'goCharRight';
-    // } else if (key === 'j') {
-    //   window.setTimeout(enableFatCursor, 0);
-    //   return 'goLineDown';
-    // } else if (key === 'k') {
-    //   window.setTimeout(enableFatCursor, 0);
-    //   return 'goLineUp';
-    // } else if (key === 'a') {
-    //   this.enterInsertMode(cm);
-    //   return 'goCharRight';
-    // } else if (key === 'o') {
-    //   this.newLineAndEnterInsertMode(cm, { after: true });
-    //   return () => {};
-    // } else if (key === 'O') {
-    //   this.newLineAndEnterInsertMode(cm, { after: false });
-    //   return () => {};
-    // } else {
-    //   return () => {};
-    // }
   };
 }

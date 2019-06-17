@@ -163,7 +163,7 @@ export default [
     motionArgs: { forward: true, explicitRepeat: true, linewise: true, toJumplist: true },
   },
   { keys: '0', type: 'motion', motion: 'moveToStartOfLine' },
-  { keys: '^', type: 'motion', motion: 'moveToFirstNonWhiteSpaceCharacter' },
+  { keys: '^', type: 'motion', motion: 'moveToFirstNonBlank' },
   {
     keys: '+',
     type: 'motion',
@@ -182,7 +182,7 @@ export default [
     motion: 'moveByLines',
     motionArgs: { forward: true, toFirstChar: true, repeatOffset: -1 },
   },
-  { keys: '$', type: 'motion', motion: 'moveToEol', motionArgs: { inclusive: true } },
+  { keys: '$', type: 'motion', motion: 'moveToEndOfLine', motionArgs: { inclusive: true } },
   {
     keys: '%',
     type: 'motion',
@@ -421,7 +421,7 @@ export default [
     type: 'action',
     action: 'enterInsertMode',
     isEdit: true,
-    actionArgs: { insertAt: 'eol' },
+    actionArgs: { insertAt: 'endOfLine' },
     context: 'normal',
   },
   {
