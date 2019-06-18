@@ -1,7 +1,9 @@
+import { get } from 'https';
+
 export const enableFatCursor = () => {
   const cursor = document.querySelector('div.is-editing div.CodeMirror-cursor');
 
-  if (!cursor.classList.contains('cm-fat-cursor')) {
+  if (cursor && !cursor.classList.contains('cm-fat-cursor')) {
     cursor.classList.add('cm-fat-cursor');
   }
 };
@@ -9,7 +11,7 @@ export const enableFatCursor = () => {
 export const disableFatCursor = () => {
   const cursor = document.querySelector('div.is-editing div.CodeMirror-cursor');
 
-  if (cursor.classList.contains('cm-fat-cursor')) {
+  if (cursor && cursor.classList.contains('cm-fat-cursor')) {
     cursor.classList.remove('cm-fat-cursor');
   }
 };
@@ -24,6 +26,11 @@ export const clipLine = (cm, line) => {
 
 export const offsetCursor = (cur, chs = 0, lines = 0) => {
   return { ch: cur.ch + chs, line: cur.line + lines };
+};
+
+export const getCursorChar = cm => {
+  const { line, ch } = cm.getCursor();
+  return cm.getLine(line).charAt(ch);
 };
 
 export const removeRange = (cm, range) => {
@@ -120,67 +127,44 @@ export const findParagraph = (cm, forward) => {
   return i;
 };
 
-const isLine = (cm, line) => {
-  return line >= cm.firstLine() && line <= cm.lastLine();
+export const getDocumentEnd = cm => {
+  const lastLine = cm.lastLine();
+  const lastLineLength = cm.getLine(lastLine);
+  return { line: lastLine, ch: lastLineLength };
 };
 
-export const findWord = (cm, forward) => {
-  // Implementation in the CodeMirror repository
-  // TODO: Refactor this function
+export const getDocumentStart = () => ({ line: 0, ch: 0 });
 
-  const { line: startLine, ch: startCh } = cm.getCursor();
-  const dir = forward ? 1 : -1;
-  const isAlphanumeric = ch => /\w/.test(ch);
-  const isEmpty = ch => /\s/.test(ch);
-  const isSpecialChar = ch => !isAlphanumeric(ch) && !isEmpty(ch);
-  const charTests = [isAlphanumeric, isSpecialChar];
-  // const starFromNonEmpty = !isEmpty(lineStr.charAt(ch));
-
-  let lineStr = cm.getLine(startLine);
-  let ch = startCh;
-  let line = startLine;
-
-  while (isLine(cm, line)) {
-    let stop = dir > 0 ? lineStr.length : -1;
-    let wordStart = stop;
-    let wordEnd = stop;
-    // Find bounds of next word.
-    while (ch != stop) {
-      let foundWord = false;
-      for (let i = 0; i < charTests.length && !foundWord; ++i) {
-        if (charTests[i](lineStr.charAt(ch))) {
-          wordStart = ch;
-          // Advance to end of word.
-          while (ch != stop && charTests[i](lineStr.charAt(ch))) {
-            ch += dir;
-          }
-
-          wordEnd = ch;
-          foundWord = wordStart != wordEnd;
-          console.log(ch);
-
-          if (wordStart === startCh && line === startLine && wordEnd === wordStart + dir) {
-            // We started at the end of a word. Find the next one.
-            continue;
-          } else {
-            return {
-              from: Math.min(wordStart, wordEnd + 1),
-              to: Math.max(wordStart, wordEnd),
-              line,
-            };
-          }
-        }
-      }
-      if (!foundWord) {
-        ch += dir;
-      }
-    }
-    // Advance to next/prev line.
-    line += dir;
-    if (!isLine(cm, line)) {
-      return null;
-    }
-    lineStr = cm.getLine(line);
-    ch = dir > 0 ? 0 : lineStr.length;
+const getPositions = (line, regex) => {
+  const positions = [];
+  let match;
+  while ((match = regex.exec(line))) {
+    positions.push(match.index);
   }
+  return positions;
+};
+
+export const findWordStart = (cm, forward) => {
+  const dir = forward ? 1 : -1;
+  const cur = cm.getCursor();
+
+  const wordSeparator = '\\\\()"\':,.;<>~!@#$%^&*|+=[\\]{}`?-';
+  const regexp = new RegExp(`([^\\s${wordSeparator}]+|[${wordSeparator}]+)`, 'ug');
+
+  let line = cur.line;
+  while (line <= cm.lastLine() && line >= cm.firstLine()) {
+    const lineStr = cm.getLine(line);
+    const positions = getPositions(lineStr, regexp);
+    const wordStart = positions.filter(
+      idx => (forward ? idx > cur.ch : idx < cur.ch) || line !== cur.line,
+    )[0];
+
+    if (wordStart !== undefined) {
+      return { line, ch: wordStart };
+    }
+
+    line += dir;
+  }
+
+  return forward ? getDocumentEnd(cm) : getDocumentStart();
 };

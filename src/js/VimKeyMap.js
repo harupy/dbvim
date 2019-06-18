@@ -146,13 +146,8 @@ export default class VimKeyMap {
       },
 
       moveByWords: (cm, motionArgs) => {
-        const { line, from, to } = cmu.findWord(cm, motionArgs.forward);
-        console.log(line, from, to);
-        if (motionArgs.wordEnd) {
-          return { line, ch: to - 1 };
-        } else {
-          return { line, ch: from };
-        }
+        const cur = cmu.findWordStart(cm, motionArgs.forward);
+        return cur;
       },
 
       moveToStartOfLine: cm => {
