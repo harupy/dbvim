@@ -61,10 +61,16 @@ export default class VimKeyMap {
     this.name = 'vim';
     this.inputState = new InputState();
     this.insertMode = false;
-    // this.fallthrough = ['default'];
+    this.fallthrough = ['default'];
   }
 
   call = (key, cm) => {
+    // For Windows, changing the default keymap disables Ctrl-C
+    // For Mac, Cmd-C works as usual
+    // Linux, I haven't checked yet
+    if (key === 'Ctrl-C') {
+      document.execCommand('copy');
+    }
     // For a single alphabet (e.g. A, B, C), another key event is dispatched with "'<char>'"
     // This line is for ignoring the event.
     if (key.length === 1) {

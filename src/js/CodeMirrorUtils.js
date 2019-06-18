@@ -130,9 +130,7 @@ export const findWord = (cm, forward) => {
   const isEmpty = ch => /\s/.test(ch);
   const isSpecialChar = ch => !isAlphanumeric(ch) && !isEmpty(ch);
   const charTests = [isAlphanumeric, isSpecialChar];
-  const starFromNonEmpty = !isEmpty(lineStr.charAt(ch));
-  // const startFromEndOfWord =
-  // wordStart === startCh && line === startLine && wordEnd === wordStart + dir;
+  // const starFromNonEmpty = !isEmpty(lineStr.charAt(ch));
 
   let lineStr = cm.getLine(startLine);
   let ch = startCh;
@@ -157,7 +155,7 @@ export const findWord = (cm, forward) => {
           foundWord = wordStart != wordEnd;
           console.log(ch);
 
-          if (startFromEndOfWord && starFromNonEmpty) {
+          if (wordStart === startCh && line === startLine && wordEnd === wordStart + dir) {
             // We started at the end of a word. Find the next one.
             continue;
           } else {
