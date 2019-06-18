@@ -139,6 +139,16 @@ export default class VimKeyMap {
         return { line: newLine, ch };
       },
 
+      moveByWords: (cm, motionArgs) => {
+        const { line, from, to } = cmu.findWord(cm, motionArgs.forward);
+        console.log(line, from, to);
+        if (motionArgs.wordEnd) {
+          return { line, ch: to - 1 };
+        } else {
+          return { line, ch: from };
+        }
+      },
+
       moveToStartOfLine: cm => {
         const { line } = cm.getCursor();
         return { line, ch: 0 };
