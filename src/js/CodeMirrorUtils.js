@@ -115,3 +115,70 @@ export const findParagraph = (cm, forward) => {
   }
   return i;
 };
+
+const isLine = (cm, line) => {
+  return line >= cm.firstLine() && line <= cm.lastLine();
+};
+
+export const findWord = (cm, forward) => {
+  // Implementation in the CodeMirror repository
+  // TODO: Refactor this function
+
+  const { line: startLine, ch: startCh } = cm.getCursor();
+  const dir = forward ? 1 : -1;
+  const isAlphanumeric = ch => /\w/.test(ch);
+  const isEmpty = ch => /\s/.test(ch);
+  const isSpecialChar = ch => !isAlphanumeric(ch) && !isEmpty(ch);
+  const charTests = [isAlphanumeric, isSpecialChar];
+  const starFromNonEmpty = !isEmpty(lineStr.charAt(ch));
+  // const startFromEndOfWord =
+  // wordStart === startCh && line === startLine && wordEnd === wordStart + dir;
+
+  let lineStr = cm.getLine(startLine);
+  let ch = startCh;
+  let line = startLine;
+
+  while (isLine(cm, line)) {
+    let stop = dir > 0 ? lineStr.length : -1;
+    let wordStart = stop;
+    let wordEnd = stop;
+    // Find bounds of next word.
+    while (ch != stop) {
+      let foundWord = false;
+      for (let i = 0; i < charTests.length && !foundWord; ++i) {
+        if (charTests[i](lineStr.charAt(ch))) {
+          wordStart = ch;
+          // Advance to end of word.
+          while (ch != stop && charTests[i](lineStr.charAt(ch))) {
+            ch += dir;
+          }
+
+          wordEnd = ch;
+          foundWord = wordStart != wordEnd;
+          console.log(ch);
+
+          if (startFromEndOfWord && starFromNonEmpty) {
+            // We started at the end of a word. Find the next one.
+            continue;
+          } else {
+            return {
+              from: Math.min(wordStart, wordEnd + 1),
+              to: Math.max(wordStart, wordEnd),
+              line,
+            };
+          }
+        }
+      }
+      if (!foundWord) {
+        ch += dir;
+      }
+    }
+    // Advance to next/prev line.
+    line += dir;
+    if (!isLine(cm, line)) {
+      return null;
+    }
+    lineStr = cm.getLine(line);
+    ch = dir > 0 ? 0 : lineStr.length;
+  }
+};
