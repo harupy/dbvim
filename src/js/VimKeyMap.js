@@ -142,7 +142,7 @@ export default class VimKeyMap {
       moveByLines: (cm, motionArgs) => {
         const { line, ch } = cm.getCursor();
         const newLine = motionArgs.forward ? line + 1 : line - 1;
-        return { line: newLine, ch };
+        return { line: cmu.clipLine(cm, newLine), ch };
       },
 
       moveByWords: (cm, motionArgs) => {

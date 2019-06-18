@@ -18,6 +18,10 @@ const clip = (x, lower, upper) => {
   return Math.min(upper, Math.max(lower, x));
 };
 
+export const clipLine = (cm, line) => {
+  return clip(line, cm.firstLine(), cm.lastLine());
+};
+
 export const offsetCursor = (cur, chs = 0, lines = 0) => {
   return { ch: cur.ch + chs, line: cur.line + lines };
 };
