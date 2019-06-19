@@ -61,7 +61,7 @@ export default class VimKeyMap {
     this.name = 'vim';
     this.inputState = new InputState();
     this.insertMode = false;
-    this.fallthrough = ['default'];
+    // this.fallthrough = ['default'];
   }
 
   call = (key, cm) => {

@@ -1,5 +1,3 @@
-import { get } from 'https';
-
 export const enableFatCursor = () => {
   const cursor = document.querySelector('div.is-editing div.CodeMirror-cursor');
 
@@ -29,8 +27,19 @@ export const offsetCursor = (cur, chs = 0, lines = 0) => {
 };
 
 export const getCursorChar = cm => {
-  const { line, ch } = cm.getCursor();
-  return cm.getLine(line).charAt(ch);
+  // Return the character the cursor is on
+  const cur = cm.getCursor();
+  return cm.getLine(cur.line).charAt(cur.ch);
+};
+
+export const getLineBegin = cm => {
+  const { line } = cm.getCursor();
+  return { line, ch: 0 };
+};
+
+export const getLineEnd = cm => {
+  const { line } = cm.getCursor();
+  return { line, ch: cm.getLine(line).length };
 };
 
 export const removeRange = (cm, range) => {
@@ -39,6 +48,15 @@ export const removeRange = (cm, range) => {
 
 export const getLine = cm => {
   return cm.getLine(cm.getCursor().line);
+};
+
+export const getCharOffset = (cm, offset = 0) => {
+  const cur = cm.getCursor();
+  const lineLength = cm.getLine(line).length
+  const ch = clip(ch + offset, 0, lineLength);
+  return cm.getLine(line).charAt(ch + offset);
+
+  return cm.getLine(line + offset);
 };
 
 export const getLineOffset = (cm, offset = 0) => {
@@ -55,6 +73,18 @@ export const getIndent = cm => {
   return line.match(/^\s*/)[0];
 };
 
+export const isDocumentBegin = cm => {
+  const { line, cur } = cm.getCursor();
+  return line === 0 && cur === 0;
+};
+
+export const isDocumentBegin = cm => {
+  const lastLine = cm.lastLine();
+  const lastLineLength = cm.getLine(lastLine).length;
+  const { line, cur } = cm.getCursor()
+  return line === lastLine && cur === lastLineLength;
+};
+
 export const isFirstLine = cm => {
   return cm.getCursor().line === cm.firstLine();
 };
@@ -63,11 +93,11 @@ export const isLastLine = cm => {
   return cm.getCursor().line === cm.lastLine();
 };
 
-export const isStartOfLine = cm => {
+export const isLineBegin = cm => {
   return cm.getCursor().ch === 0;
 };
 
-export const isEndOfLine = cm => {
+export const isLineEnd = cm => {
   const { line, ch } = cm.getCursor();
   return cm.getLine(line).length === ch;
 };
@@ -144,6 +174,29 @@ const getPositions = (line, regex) => {
   return positions;
 };
 
+export const findWordRight = cm => {
+  const cur = cm.getCursor();
+
+  const wordSeparator = '\\\\()"\':,.;<>~!@#$%^&*|+=[\\]{}`?-';
+  const regexp = new RegExp(`([^\\s${wordSeparator}]+|[${wordSeparator}]+)`, 'ug');
+
+  let line = cur.line;
+
+  while (line <= cm.lastLine()) {
+    const lineStr = cm.getLine(line);
+    const positions = getPositions(lineStr, regexp);
+    const wordStart = positions.filter(idx => idx > cur.ch || line !== cur.line)[0];
+
+    if (wordStart !== undefined) {
+      return { line, ch: wordStart };
+    }
+
+    line++;
+  }
+
+  return getDocumentEnd(cm);
+};
+
 export const findWordStart = (cm, forward) => {
   const dir = forward ? 1 : -1;
   const cur = cm.getCursor();
@@ -153,7 +206,7 @@ export const findWordStart = (cm, forward) => {
 
   let line = cur.line;
 
-  while (forward ? line <= cm.lastLine() : line >= cm.firstLine()) {
+  while (line <= cm.lastLine() && line >= cm.firstLine()) {
     const lineStr = cm.getLine(line);
     const positions = getPositions(lineStr, regexp);
     const posCandidates = positions.filter(
