@@ -132,9 +132,8 @@ const getIndentLengthAt = function(line) {
 
 const expandToLine = function() {
   const line = this._getLine();
-  const lineLength = this.getLineLengthAt(line);
   const head = { line, ch: 0 };
-  const anchor = { line, ch: lineLength };
+  const anchor = { line: line + 1, ch: 0 };
   return { head, anchor };
 };
 
@@ -357,6 +356,7 @@ const funcs = {
   getLineEnd,
   getLineAbove,
   getLineBelow,
+  expandToLine,
   getDocumentBegin,
   getDocumentEnd,
   getIndent,

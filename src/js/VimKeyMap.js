@@ -122,14 +122,31 @@ export default class VimKeyMap {
     cmu.removeRange(cm, { from, to });
   };
 
+  evalInput = cm => {
+    const { inputState } = this;
+    let newHead, newAnchor;
+
+    if (inputState.motion) {
+      if (inputState.motionArgs.linewise) {
+        const range = cm.expandToLine();
+        newHead = range.head;
+        newAnchor = range.anchor;
+      }
+    }
+
+    cm.replaceRange('', newHead, newAnchor);
+  };
+
   processOperator = (cm, cmd) => {
-    if (this.inputState.operator) {
-      this.inputState.setMotion('expandToLine');
-      this.inputState.setMotionArgs({ linewise: true });
+    const { inputState } = this;
+    if (inputState.operator) {
+      inputState.setMotion('expandToLine');
+      inputState.setMotionArgs({ linewise: true });
+      this.evalInput(cm);
       return;
     }
-    this.inputState.setOperator(cmd.operator);
-    this.inputState.setOperatorArgs(cmd.operatorArgs);
+    inputState.setOperator(cmd.operator);
+    inputState.setOperatorArgs(cmd.operatorArgs);
   };
 
   processMotion = (_cm, cmd) => {
@@ -227,6 +244,10 @@ export default class VimKeyMap {
           return () => {};
         case 'action': {
           this.processAction(cm, cmd);
+          return () => {};
+        }
+        case 'operator': {
+          this.processOperator(cm, cmd);
           return () => {};
         }
         default:
