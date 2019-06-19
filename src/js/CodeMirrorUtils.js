@@ -152,12 +152,20 @@ export const findWordStart = (cm, forward) => {
   const regexp = new RegExp(`([^\\s${wordSeparator}]+|[${wordSeparator}]+)`, 'ug');
 
   let line = cur.line;
-  while (line <= cm.lastLine() && line >= cm.firstLine()) {
+
+  while (forward ? line <= cm.lastLine() : line >= cm.firstLine()) {
     const lineStr = cm.getLine(line);
     const positions = getPositions(lineStr, regexp);
-    const wordStart = positions.filter(
+    const posCandidates = positions.filter(
       idx => (forward ? idx > cur.ch : idx < cur.ch) || line !== cur.line,
-    )[0];
+    );
+
+    if (posCandidates.length === 0) {
+      line += dir;
+      continue;
+    }
+
+    const wordStart = forward ? Math.min(...posCandidates) : Math.max(...posCandidates);
 
     if (wordStart !== undefined) {
       return { line, ch: wordStart };
