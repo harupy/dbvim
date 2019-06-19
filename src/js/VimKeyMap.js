@@ -122,6 +122,16 @@ export default class VimKeyMap {
     cmu.removeRange(cm, { from, to });
   };
 
+  processOperator = (cm, cmd) => {
+    if (this.inputState.operator) {
+      this.inputState.setMotion('expandToLine');
+      this.inputState.setMotionArgs({ linewise: true });
+      return;
+    }
+    this.inputState.setOperator(cmd.operator);
+    this.inputState.setOperatorArgs(cmd.operatorArgs);
+  };
+
   processMotion = (_cm, cmd) => {
     const motions = {
       moveByCharacters: (cm, motionArgs) => {
