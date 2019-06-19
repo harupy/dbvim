@@ -1,6 +1,7 @@
 import Vim from './Vim';
 import VimKeyMap from './VimKeyMap';
 import { enableFatCursor, disableFatCursor } from './CodeMirrorUtils';
+import extendCodeMirror from './extendCodeMirror';
 
 (() => {
   const enterVimMode = cm => {
@@ -68,36 +69,7 @@ import { enableFatCursor, disableFatCursor } from './CodeMirrorUtils';
       const cm = cellEditing.CodeMirror;
       cm.state.vimized = true;
       const vimKeyMap = new VimKeyMap();
-
-      cm.getBeginPositions = function(line, regex) {
-        const positions = [];
-        let match;
-        while ((match = regex.exec(line))) {
-          positions.push(match.index);
-        }
-        return positions;
-      };
-
-      cm.findWordBegin = function() {
-        const cur = this.getCursor();
-
-        const wordSeparator = '\\\\()"\':,.;<>~!@#$%^&*|+=[\\]{}`?-';
-        const regexp = new RegExp(`([^\\s${wordSeparator}]+|[${wordSeparator}]+)`, 'ug');
-
-        let line = cur.line;
-
-        while (line <= this.lastLine()) {
-          const lineStr = this.getLine(line);
-          const positions = this.getBeginPositions(lineStr, regexp);
-          const wordStart = positions.filter(idx => idx > cur.ch || line !== cur.line)[0];
-
-          if (wordStart !== undefined) {
-            return { line, ch: wordStart };
-          }
-
-          line++;
-        }
-      };
+      extendCodeMirror(cm);
 
       cm.addKeyMap(vimKeyMap);
       enterVimMode(cm);

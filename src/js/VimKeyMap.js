@@ -76,7 +76,6 @@ export default class VimKeyMap {
     if (key.length === 1) {
       return key;
     }
-    console.log(key);
 
     const vimKey = toVimKey(key);
     console.log(vimKey);
@@ -126,52 +125,41 @@ export default class VimKeyMap {
   processMotion = (_cm, cmd) => {
     const motions = {
       moveByCharacters: (cm, motionArgs) => {
-        const cur = _cm.getCursor();
-        const { forward } = motionArgs;
-        if (!forward && cmu.isLineBegin(cm) && !cmu.isFirstLine(cm)) {
-          const ch = cmu.getLineOffset(cm, -1).length;
-          return { line: cur.line - 1, ch };
-        } else if (forward && !cmu.isLastLine(cm) && cmu.isLineEnd(cm)) {
-          return { line: cur.line + 1, ch: 0 };
-        } else {
-          const ch = motionArgs.forward ? cur.ch + 1 : cur.ch - 1;
-          return { line: cur.line, ch };
-        }
+        return motionArgs.forward ? cm.getRight() : cm.getLeft();
       },
 
       moveByLines: (cm, motionArgs) => {
-        const { line, ch } = cm.getCursor();
-        const newLine = motionArgs.forward ? line + 1 : line - 1;
-        return { line: cmu.clipLine(cm, newLine), ch };
+        return motionArgs.forward ? cm.getLineBelow() : cm.getLineAbove();
       },
 
       moveByWords: (cm, motionArgs) => {
-        const cur = cmu.findWordStart(cm, motionArgs.forward);
-        return cur;
+        const { forward, wordEnd } = motionArgs;
+        return forward
+          ? wordEnd
+            ? cm.findWordEndRight()
+            : cm.findWordBeginRight()
+          : wordEnd
+          ? cm.findWordEndLeft()
+          : cm.findWordBeginLeft();
       },
 
       moveToStartOfLine: cm => {
-        const { line } = cm.getCursor();
-        return { line, ch: 0 };
+        return cm.getLineBegin();
       },
 
       moveToEndOfLine: cm => {
-        const { line } = cm.getCursor();
-        const ch = cmu.getLineLength(cm, line);
-        return { line, ch: ch > 0 ? ch - 1 : 0 };
+        return cm.getLineEnd();
       },
 
       moveToFirstNonBlank: cm => {
-        const { line } = cm.getCursor();
-        const ch = cmu.findFirstNonBlank(cm, line);
-        return { line, ch };
+        return cm.findFirstNonBlank();
       },
 
       moveByParagraph: (cm, motionArgs) => {
-        const line = cmu.findParagraph(cm, motionArgs.forward);
-        return { line, ch: 0 };
+        return motionArgs.forward ? cm.findParagraphBelow() : cm.findParagraphAbove();
       },
     };
+
     const cur = motions[cmd.motion](_cm, cmd.motionArgs);
     _cm.setCursor(cur);
     window.setTimeout(enableFatCursor, 0);
@@ -200,13 +188,13 @@ export default class VimKeyMap {
         if (actionArgs) {
           switch (actionArgs.insertAt) {
             case 'charAfter':
-              cmu.moveCursor(cm, 1);
+              cm.setCursor(cm.getRight());
               break;
             case 'endOfLine':
-              cmu.moveToEndOfLine(cm);
+              cm.setCursor(cm.offsetCursor(cm.getLineEnd(), 1));
               break;
             case 'firstNonBlank':
-              cmu.moveToFirstNonBlank(cm);
+              cm.setCursor(cm.findFirstNonBlank());
               break;
             default:
               break;
@@ -221,7 +209,6 @@ export default class VimKeyMap {
 
   processKeyNormal = (cm, key, context) => {
     const cmd = commandSearch(key, keyMap, context);
-    console.log(key);
     console.log(cmd);
     if (cmd) {
       switch (cmd.type) {

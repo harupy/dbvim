@@ -203,7 +203,6 @@ export const findWordRight = cm => {
 };
 
 export const findWordStart = (cm, forward) => {
-  alert(cm.getCurrentLine());
   const dir = forward ? 1 : -1;
   const cur = cm.getCursor();
 
