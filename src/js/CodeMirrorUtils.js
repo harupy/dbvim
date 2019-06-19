@@ -51,12 +51,8 @@ export const getLine = cm => {
 };
 
 export const getCharOffset = (cm, offset = 0) => {
-  const cur = cm.getCursor();
-  const lineLength = cm.getLine(line).length
-  const ch = clip(ch + offset, 0, lineLength);
+  const { ch, line } = cm.getCursor();
   return cm.getLine(line).charAt(ch + offset);
-
-  return cm.getLine(line + offset);
 };
 
 export const getLineOffset = (cm, offset = 0) => {
@@ -78,10 +74,10 @@ export const isDocumentBegin = cm => {
   return line === 0 && cur === 0;
 };
 
-export const isDocumentBegin = cm => {
+export const isDocumentEnd = cm => {
   const lastLine = cm.lastLine();
   const lastLineLength = cm.getLine(lastLine).length;
-  const { line, cur } = cm.getCursor()
+  const { line, cur } = cm.getCursor();
   return line === lastLine && cur === lastLineLength;
 };
 
@@ -165,11 +161,20 @@ export const getDocumentEnd = cm => {
 
 export const getDocumentStart = () => ({ line: 0, ch: 0 });
 
-const getPositions = (line, regex) => {
+export const getBeginPositions = (line, regex) => {
   const positions = [];
   let match;
   while ((match = regex.exec(line))) {
     positions.push(match.index);
+  }
+  return positions;
+};
+
+export const getEndPositions = (line, regex) => {
+  const positions = [];
+  let match;
+  while ((match = regex.exec(line))) {
+    positions.push(match.index + match[0].length - 1);
   }
   return positions;
 };
@@ -184,7 +189,7 @@ export const findWordRight = cm => {
 
   while (line <= cm.lastLine()) {
     const lineStr = cm.getLine(line);
-    const positions = getPositions(lineStr, regexp);
+    const positions = getBeginPositions(lineStr, regexp);
     const wordStart = positions.filter(idx => idx > cur.ch || line !== cur.line)[0];
 
     if (wordStart !== undefined) {
@@ -198,17 +203,18 @@ export const findWordRight = cm => {
 };
 
 export const findWordStart = (cm, forward) => {
+  alert(cm.getCurrentLine());
   const dir = forward ? 1 : -1;
   const cur = cm.getCursor();
 
   const wordSeparator = '\\\\()"\':,.;<>~!@#$%^&*|+=[\\]{}`?-';
-  const regexp = new RegExp(`([^\\s${wordSeparator}]+|[${wordSeparator}]+)`, 'ug');
+  const nonWhiteSpaceRegex = new RegExp(`([^\\s${wordSeparator}]+|[${wordSeparator}]+)`, 'ug');
 
   let line = cur.line;
 
   while (line <= cm.lastLine() && line >= cm.firstLine()) {
     const lineStr = cm.getLine(line);
-    const positions = getPositions(lineStr, regexp);
+    const positions = getBeginPositions(lineStr, nonWhiteSpaceRegex);
     const posCandidates = positions.filter(
       idx => (forward ? idx > cur.ch : idx < cur.ch) || line !== cur.line,
     );

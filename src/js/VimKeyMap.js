@@ -128,10 +128,10 @@ export default class VimKeyMap {
       moveByCharacters: (cm, motionArgs) => {
         const cur = _cm.getCursor();
         const { forward } = motionArgs;
-        if (!forward && cmu.isStartOfLine(cm) && !cmu.isFirstLine(cm)) {
+        if (!forward && cmu.isLineBegin(cm) && !cmu.isFirstLine(cm)) {
           const ch = cmu.getLineOffset(cm, -1).length;
           return { line: cur.line - 1, ch };
-        } else if (forward && !cmu.isLastLine(cm) && cmu.isEndOfLine(cm)) {
+        } else if (forward && !cmu.isLastLine(cm) && cmu.isLineEnd(cm)) {
           return { line: cur.line + 1, ch: 0 };
         } else {
           const ch = motionArgs.forward ? cur.ch + 1 : cur.ch - 1;
