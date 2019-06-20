@@ -628,5 +628,6 @@ export default [
     searchArgs: { forward: false, querySrc: 'wordUnderCursor', toJumplist: true },
   },
   // Ex command
+
   { keys: ':', type: 'ex' },
 ];

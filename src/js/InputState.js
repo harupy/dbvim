@@ -1,5 +1,7 @@
 export default class InputState {
   constructor() {
+    this.keyBefore = '';
+    this.text = '';
     this.initialize();
   }
 
@@ -17,6 +19,14 @@ export default class InputState {
 
   appendKeyBuffer = key => {
     this.keyBuffer.append(key);
+  };
+
+  clearKeyBuffer = () => {
+    this.keyBuffer = [];
+  };
+
+  setText = text => {
+    this.text = text;
   };
 
   setOperator = operator => {
@@ -37,5 +47,9 @@ export default class InputState {
 
   setRegisterName = registerName => {
     this.registerName = registerName;
+  };
+
+  setKeyBefore = key => {
+    this.keyBefore = key;
   };
 }

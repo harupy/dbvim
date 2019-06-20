@@ -1,5 +1,6 @@
 import { enableFatCursor, disableFatCursor } from './CodeMirrorUtils';
 import InputState from './InputState';
+import Register from './Register';
 import keyMap from './defaultKeyMap';
 import commandSearch from './commandSearch';
 
@@ -48,6 +49,7 @@ export default class VimKeyMap {
   constructor() {
     this.name = 'vim';
     this.inputState = new InputState();
+    this.register = new Register();
     this.insertMode = false;
     // this.fallthrough = ['default'];
   }
@@ -55,26 +57,32 @@ export default class VimKeyMap {
   // This function is called every time you type something
   call = (key, cm) => {
     // For a single character, another key event is dispatched with "'<char>'"
-    // This line is for ignoring the fisrt event.
-    if (key.length === 1) {
+    // This line is for ignoring the first event.
+    if (key.charAt(0) !== "'") {
       return key;
     }
 
     const vimKey = toVimKey(key);
-    console.log(vimKey);
+    const { inputState } = this;
 
-    this.inputState.keyBuffer.push(vimKey);
+    if (vimKey !== 'Shift' && vimKey !== 'Ctrl') {
+      inputState.keyBuffer.push(vimKey);
+    }
+    const keys = inputState.keyBuffer.join('');
+    console.log('Key Buffer: ', keys);
     if (!cm) {
       return undefined;
     }
 
     if (this.insertMode) {
-      // Sepcail case for JK to leave the insert mode
-      if (this.inputState.keyBuffer.join('').endsWith('jk')) {
+      // Special case for JK to leave the insert mode
+      if (inputState.keyBefore === 'j' && vimKey === 'k') {
         this.processJK(cm);
         this.leaveInsertMode(cm);
-        this.inputState.initialize();
+        return;
       }
+      inputState.setKeyBefore(vimKey);
+      inputState.initialize();
       return vimKey;
     } else {
       /* The cursor class needs to be updated every time
@@ -82,7 +90,7 @@ export default class VimKeyMap {
        * when you mutate the cell state
        */
       window.setTimeout(enableFatCursor, 0);
-      return this.processKeyNormal(cm, vimKey, 'normal');
+      return this.processKeyNormal(cm, keys, 'normal');
     }
   };
 
@@ -126,19 +134,43 @@ export default class VimKeyMap {
     cm.replaceRange('', newHead, newAnchor);
   };
 
-  processOperator = (cm, cmd) => {
-    const { inputState } = this;
-    if (inputState.operator) {
-      inputState.setMotion('expandToLine');
-      inputState.setMotionArgs({ linewise: true });
-      this.evalInput(cm);
+  processOperator = (_cm, cmd) => {
+    const operators = {
+      delete: (cm, range) => {
+        cm.replaceRange('', range.head, range.anchor);
+      },
+      change: (cm, range) => {
+        cm.replaceRange('', range.head, range.anchor);
+        this.enterInsertMode(cm);
+      },
+    };
+
+    const { inputState, register } = this;
+
+    // When called from 'processMotion'
+    if (inputState.motion) {
+      const { range } = cmd;
+      const text = _cm.getRange(range.head, range.anchor);
+      register.setText(text);
+      register.setLinewise(false);
+      operators[inputState.operator](_cm, range);
       inputState.initialize();
-      // window.setTimeout(enableFatCursor, 0);
+      return;
+    }
+
+    // When a repeated keys like 'dd' is typed
+    if (inputState.operator) {
+      const range = _cm.expandToLine();
+      const text = _cm.getRange(range.head, range.anchor);
+      register.setText('\n' + text.slice(0, -1));
+      register.setLinewise(true);
+      operators[inputState.operator](_cm, range);
+      inputState.initialize();
       return;
     }
     inputState.setOperator(cmd.operator);
     inputState.setOperatorArgs(cmd.operatorArgs);
-    // window.setTimeout(enableFatCursor, 0);
+    inputState.clearKeyBuffer();
   };
 
   processMotion = (_cm, cmd) => {
@@ -177,10 +209,32 @@ export default class VimKeyMap {
       moveByParagraph: (cm, motionArgs) => {
         return motionArgs.forward ? cm.findParagraphBelow() : cm.findParagraphAbove();
       },
+
+      selectInnerWord: cm => {
+        return cm.findInnerWord();
+      },
+
+      textObjectManipulation: (cm, motionArgs) => {
+        return cm.findMatchingPair(motionArgs);
+      },
     };
 
-    const cur = motions[cmd.motion](_cm, cmd.motionArgs);
-    _cm.setCursor(cur);
+    const { inputState } = this;
+
+    inputState.setMotion(cmd.motion);
+    inputState.setMotionArgs(cmd.motionArgs);
+    const cur = _cm.getCursor();
+    const motionResult = motions[cmd.motion](_cm, cmd.motionArgs);
+    if (inputState.operator) {
+      this.processOperator(_cm, {
+        operator: inputState.operator,
+        range: motionResult.head ? motionResult : { head: cur, anchor: motionResult },
+      });
+      return;
+    }
+
+    _cm.setCursor(motionResult);
+    inputState.initialize();
     // window.setTimeout(enableFatCursor, 0);
   };
 
@@ -224,17 +278,32 @@ export default class VimKeyMap {
         }
         this.enterInsertMode(cm);
       },
+
+      paste: cm => {
+        if (this.register.linewise) {
+          cm.setCursor(cm.getLineEnd());
+        }
+
+        cm.setCursor(cm.getCursorOffset(1));
+        cm.replaceSelection(this.register.text);
+      },
+
+      undo: cm => {
+        cm.execCommand('undo');
+      },
     };
 
+    const { inputState } = this;
+
+    if (inputState.operator) {
+      return;
+    }
     actions[cmd.action](_cm, cmd.actionArgs);
+    inputState.initialize();
   };
 
   processKeyNormal = (cm, key, context) => {
     const cmd = commandSearch(key, keyMap, context);
-    /*
-     * cmd.type select innerWord
-     *
-     */
     console.log(cmd);
     if (cmd) {
       switch (cmd.type) {
@@ -249,9 +318,16 @@ export default class VimKeyMap {
           this.processOperator(cm, cmd);
           return () => {};
         }
+        case 'operatorMotion': {
+          this.processOperator(cm, cmd);
+          this.processMotion(cm, cmd);
+          break;
+        }
         default:
           return;
       }
+    } else {
+      this.inputState.initialize();
     }
   };
 }

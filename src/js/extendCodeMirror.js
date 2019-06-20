@@ -29,6 +29,10 @@ const funcs = {
     return { ch: cur.ch + chs, line: cur.line + lines };
   },
 
+  getCursorOffset: function(chs = 0, lines = 0) {
+    return this.offsetCursor(this.getCursor(), chs, lines);
+  },
+
   getCursorChar: function() {
     // Return the character the cursor is on
     const cur = this.getCursor();
@@ -257,7 +261,7 @@ const funcs = {
     return { line: l, ch: 0 };
   },
 
-  findWordBeginRight: function() {
+  findWordBeginRight: function(inclusive = false) {
     const { line, ch } = this.getCursor();
 
     const wordSeparator = '\\\\()"\':,.;<>~!@#$%^&*|+=[\\]{}`?-';
@@ -268,7 +272,9 @@ const funcs = {
     while (l <= this.lastLine()) {
       const lineStr = this.getLineAt(l);
       const positions = getBeginPositions(lineStr, regexp);
-      const wordBegin = positions.filter(idx => idx > ch || l !== line)[0];
+      const wordBegin = positions.filter(
+        idx => (inclusive ? idx >= ch : idx > ch) || l !== line,
+      )[0];
 
       if (wordBegin !== undefined) {
         return { line: l, ch: wordBegin };
@@ -280,7 +286,7 @@ const funcs = {
     return this.getDocumentEnd();
   },
 
-  findWordBeginLeft: function() {
+  findWordBeginLeft: function(inclusive = false) {
     const { line, ch } = this.getCursor();
 
     const wordSeparator = '\\\\()"\':,.;<>~!@#$%^&*|+=[\\]{}`?-';
@@ -291,7 +297,9 @@ const funcs = {
     while (l >= this.firstLine()) {
       const lineStr = this.getLineAt(l);
       const positions = getBeginPositions(lineStr, regexp);
-      const wordBegin = positions.filter(idx => idx < ch || l !== line).reverse()[0];
+      const wordBegin = positions
+        .filter(idx => (inclusive ? idx <= ch : idx < ch) || l !== line)
+        .reverse()[0];
 
       if (wordBegin !== undefined) {
         return { line: l, ch: wordBegin };
@@ -303,7 +311,7 @@ const funcs = {
     return this.getDocumentBegin();
   },
 
-  findWordEndRight: function() {
+  findWordEndRight: function(inclusive = false) {
     const { line, ch } = this.getCursor();
     const wordSeparator = '\\\\()"\':,.;<>~!@#$%^&*|+=[\\]{}`?-';
     const regexp = new RegExp(`([^\\s${wordSeparator}]+|[${wordSeparator}]+)`, 'ug');
@@ -313,7 +321,7 @@ const funcs = {
     while (l <= this.lastLine()) {
       const lineStr = this.getLineAt(l);
       const positions = getEndPositions(lineStr, regexp);
-      const wordEnd = positions.filter(idx => idx > ch || l !== line)[0];
+      const wordEnd = positions.filter(idx => (inclusive ? idx >= ch : idx > ch) || l !== line)[0];
 
       if (wordEnd !== undefined) {
         return { line: l, ch: wordEnd };
@@ -325,7 +333,7 @@ const funcs = {
     return this.getDocumentEnd();
   },
 
-  findWordEndLeft: function() {
+  findWordEndLeft: function(inclusive = false) {
     const { line, ch } = this.getCursor();
     const wordSeparator = '\\\\()"\':,.;<>~!@#$%^&*|+=[\\]{}`?-';
     const regexp = new RegExp(`([^\\s${wordSeparator}]+|[${wordSeparator}]+)`, 'ug');
@@ -335,7 +343,9 @@ const funcs = {
     while (l >= this.firstLine()) {
       const lineStr = this.getLineAt(l);
       const positions = getEndPositions(lineStr, regexp);
-      const wordEnd = positions.filter(idx => idx < ch || l !== line).reverse()[0];
+      const wordEnd = positions
+        .filter(idx => (inclusive ? idx <= ch : idx < ch) || l !== line)
+        .reverse()[0];
 
       if (wordEnd !== undefined) {
         return { line: l, ch: wordEnd };
@@ -347,37 +357,153 @@ const funcs = {
     return this.getDocumentBegin();
   },
 
-  findWordStart: function(forward) {
-    const dir = forward ? 1 : -1;
+  findInnerWord: function(inclusive = true) {
+    const wordStart = this.findWordBeginLeft(inclusive);
+    const wordEnd = this.findWordEndRight(inclusive);
+
+    return { head: wordStart, anchor: this.offsetCursor(wordEnd, 1) };
+  },
+
+  findMatchingPair: function(motionArgs) {
+    const mirroredPairs = {
+      '(': ')',
+      ')': '(',
+      '{': '}',
+      '}': '{',
+      '[': ']',
+      ']': '[',
+      '<': '>',
+      '>': '<',
+    };
+    const selfPaired = { "'": true, '"': true, '`': true };
+
+    let character = motionArgs.selectedCharacter;
+    if (character == 'b') {
+      character = '(';
+    } else if (character == 'B') {
+      character = '{';
+    }
+
+    const inclusive = !motionArgs.textObjectInner;
+
+    if (mirroredPairs[character]) {
+      return this.selectCompanionObject(character, inclusive);
+    } else if (selfPaired[character]) {
+      return this.findBeginningAndEnd(character, inclusive);
+    } else if (character === 'w') {
+      return this.findInnerWord(inclusive);
+    }
+  },
+
+  selectCompanionObject: function(symb, inclusive) {
     const cur = this.getCursor();
+    let start, end;
 
-    const wordSeparator = '\\\\()"\':,.;<>~!@#$%^&*|+=[\\]{}`?-';
-    const nonWhiteSpaceRegex = new RegExp(`([^\\s${wordSeparator}]+|[${wordSeparator}]+)`, 'ug');
+    const bracketRegexp = {
+      '(': /[()]/,
+      ')': /[()]/,
+      '[': /[[\]]/,
+      ']': /[[\]]/,
+      '{': /[{}]/,
+      '}': /[{}]/,
+      '<': /[<>]/,
+      '>': /[<>]/,
+    }[symb];
+    const openSym = {
+      '(': '(',
+      ')': '(',
+      '[': '[',
+      ']': '[',
+      '{': '{',
+      '}': '{',
+      '<': '<',
+      '>': '<',
+    }[symb];
+    const curChar = this.getLine(cur.line).charAt(cur.ch);
+    const offset = curChar === openSym ? 1 : 0;
 
-    let line = cur.line;
+    start = this.scanForBracket({ line: cur.line, ch: cur.ch + offset }, -1, undefined, {
+      bracketRegex: bracketRegexp,
+    });
+    end = this.scanForBracket({ line: cur.line, ch: cur.ch + offset }, 1, undefined, {
+      bracketRegex: bracketRegexp,
+    });
 
-    while (line <= this.lastLine() && line >= this.firstLine()) {
-      const lineStr = this.getLineAt(line);
-      const positions = getBeginPositions(lineStr, nonWhiteSpaceRegex);
-      const posCandidates = positions.filter(
-        idx => (forward ? idx > cur.ch : idx < cur.ch) || line !== cur.line,
-      );
-
-      if (posCandidates.length === 0) {
-        line += dir;
-        continue;
-      }
-
-      const wordBegin = forward ? Math.min(...posCandidates) : Math.max(...posCandidates);
-
-      if (wordBegin !== undefined) {
-        return { line, ch: wordBegin };
-      }
-
-      line += dir;
+    if (!start || !end) {
+      return { head: cur, anchor: cur };
     }
 
-    return forward ? this.getDocumentEnd() : this.getDocumentBegin();
+    start = start.pos;
+    end = end.pos;
+
+    if ((start.line == end.line && start.ch > end.ch) || start.line > end.line) {
+      let tmp = start;
+      start = end;
+      end = tmp;
+    }
+
+    if (inclusive) {
+      end.ch++;
+    } else {
+      start.ch++;
+    }
+
+    return { head: start, anchor: end };
+  },
+
+  findBeginningAndEnd: function(symb, inclusive) {
+    let cur = this.getCursor();
+    let line = this.getLine(cur.line);
+    const chars = line.split('');
+    const firstIndex = chars.indexOf(symb);
+
+    let start, end, i, len;
+
+    if (cur.ch < firstIndex) {
+      cur.ch = firstIndex;
+    }
+    // otherwise if the cursor is currently on the closing symbol
+    else if (firstIndex < cur.ch && chars[cur.ch] == symb) {
+      end = cur.ch; // assign end to the current cursor
+      --cur.ch; // make sure to look backwards
+    }
+
+    // if we're currently on the symbol, we've got a start
+    if (chars[cur.ch] == symb && !end) {
+      start = cur.ch + 1; // assign start to ahead of the cursor
+    } else {
+      // go backwards to find the start
+      for (i = cur.ch; i > -1 && !start; i--) {
+        if (chars[i] == symb) {
+          start = i + 1;
+        }
+      }
+    }
+
+    // look forwards for the end symbol
+    if (start && !end) {
+      for (i = start, len = chars.length; i < len && !end; i++) {
+        if (chars[i] == symb) {
+          end = i;
+        }
+      }
+    }
+
+    // nothing found
+    if (!start || !end) {
+      return { head: cur, anchor: cur };
+    }
+
+    // include the symbols
+    if (inclusive) {
+      --start;
+      ++end;
+    }
+
+    return {
+      head: { line: cur.line, ch: start },
+      anchor: { line: cur.line, ch: end },
+    };
   },
 };
 
