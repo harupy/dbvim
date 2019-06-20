@@ -37,6 +37,14 @@ const getLineLengthAt = function(line) {
   return this.getLineAt(line).length;
 };
 
+const getLastCh = function() {
+  return this.getLineLength() - 1;
+};
+
+const getLastChAt = function(line) {
+  return this.getLineLengthAt(line) - 1;
+};
+
 const getCharOffset = function(offset = 0) {
   const { ch, line } = this.getCursor();
   return this.getLineAt(line).charAt(ch + offset);
@@ -47,17 +55,20 @@ const getLineOffset = function(offset = 0) {
   return this.getLineAt(line + offset);
 };
 
-const getRight = function() {
+const getRight = function(beyondLineEnd = false) {
   const { line, ch } = this.getCursor();
-
-  if (this.isLineEnd()) {
-    if (this.isLastLine()) {
-      return this.getDocumentEnd();
-    } else {
-      return { line: line + 1, ch: 0 };
-    }
+  if (this.isEmpty()) {
+    return { line, ch };
   }
 
+  if (this.isLineEnd()) {
+    const lastCh = this.getLastCh();
+    if (this.isLastLine()) {
+      return beyondLineEnd ? { line, ch: lastCh + 1 } : { line, ch: lastCh };
+    } else {
+      return beyondLineEnd ? { line, ch: lastCh + 1 } : { line: line + 1, ch: 0 };
+    }
+  }
   return { line, ch: ch + 1 };
 };
 
@@ -68,8 +79,8 @@ const getLeft = function() {
     if (this.isFirstLine()) {
       return this.getDocumentBegin();
     } else {
-      const lineLength = this.getLineLengthAt(line - 1);
-      return { line: line - 1, ch: Math.max(0, lineLength - 1) };
+      const lastChAbove = this.getLastChAt(line - 1);
+      return { line: line - 1, ch: lastChAbove };
     }
   }
 
@@ -82,8 +93,8 @@ const getLineBelow = function() {
   const newLine = line + 1;
   const newCh =
     newLine > lastLine
-      ? this.getLineLengthAt(lastLine)
-      : Math.min(ch, this.getLineLengthAt(newLine));
+      ? this.getLineLengthAt(lastLine) - 1
+      : Math.min(ch, this.getLineLengthAt(newLine) - 1);
   return { line: Math.min(lastLine, newLine), ch: newCh };
 };
 
@@ -91,7 +102,7 @@ const getLineAbove = function() {
   const { line, ch } = this.getCursor();
   const firstLine = this.firstLine();
   const newLine = line - 1;
-  const newCh = newLine < firstLine ? 0 : Math.min(ch, this.getLineLengthAt(newLine));
+  const newCh = newLine < firstLine ? 0 : Math.min(ch, this.getLineLengthAt(newLine) - 1);
   return { line: Math.max(0, newLine), ch: newCh };
 };
 
@@ -101,13 +112,13 @@ const getLineBegin = function() {
 
 const getLineEnd = function() {
   const line = this._getLine();
-  return { line, ch: this.getLineAt(line).length - 1 };
+  return { line, ch: this.getLastChAt(line) };
 };
 
 const getDocumentEnd = function() {
   const lastLine = this.lastLine();
-  const lastLineLength = this.getLineLengthAt(lastLine);
-  return { line: lastLine, ch: Math.max(lastLineLength - 1) };
+  const lastLineCh = this.getLastChAt(lastLine);
+  return { line: lastLine, ch: lastLineCh };
 };
 
 const getDocumentBegin = function() {
@@ -132,6 +143,20 @@ const getIndentLengthAt = function(line) {
 
 const expandToLine = function() {
   const line = this._getLine();
+  const lineLength = this.getLineLength();
+
+  if (this.isSingleLine()) {
+    const head = { line: 0, ch: 0 };
+    const anchor = { line, ch: this.getLineLength() };
+    return { head, anchor };
+  }
+
+  if (this.isLastLine()) {
+    const lineLengthAbove = this.getLineLengthAt(line - 1);
+    const head = { line: line - 1, ch: lineLengthAbove };
+    const anchor = { line, ch: lineLength };
+    return { head, anchor };
+  }
   const head = { line, ch: 0 };
   const anchor = { line: line + 1, ch: 0 };
   return { head, anchor };
@@ -150,7 +175,7 @@ const isLineBegin = function() {
 };
 
 const isLineEnd = function() {
-  return this.getLineLength() === this.getCh();
+  return this.getLastCh() === this.getCh();
 };
 
 const isDocumentBegin = function() {
@@ -161,8 +186,16 @@ const isDocumentEnd = function() {
   return this.isLastLine() && this.isLineEnd();
 };
 
+const isEmpty = function() {
+  return this.getLineLength() === 0;
+};
+
 const isEmptyLine = function(line) {
   return !/\S/.test(this.getLineAt(line));
+};
+
+const isSingleLine = function() {
+  return this.lastLine() === 0;
 };
 
 const findFirstNonBlankAt = function(line) {
@@ -185,17 +218,20 @@ const findParagraphBelow = function() {
     l++;
   }
 
+  if (l > this.lastLine()) {
+    return this.getDocumentEnd();
+  }
   return { line: l, ch: 0 };
 };
 
 const findParagraphAbove = function() {
   const line = this._getLine();
   let l = line;
-  while (this.isEmptyLine(l) && l >= this.firstLine()) {
+  while (this.isEmptyLine(l) && l > this.firstLine()) {
     l--;
   }
 
-  while (!this.isEmptyLine(l) && l >= this.firstLine()) {
+  while (!this.isEmptyLine(l) && l > this.firstLine()) {
     l--;
   }
 
@@ -355,6 +391,8 @@ const funcs = {
   getLineBegin,
   getLineEnd,
   getLineAbove,
+  getLastCh,
+  getLastChAt,
   getLineBelow,
   expandToLine,
   getDocumentBegin,
@@ -363,11 +401,13 @@ const funcs = {
   getIndentAt,
   getIndentLength,
   getIndentLengthAt,
+  isEmpty,
   isLineBegin,
   isLineEnd,
   isFirstLine,
   isLastLine,
   isEmptyLine,
+  isSingleLine,
   isDocumentBegin,
   isDocumentEnd,
   findFirstNonBlank,

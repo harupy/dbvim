@@ -69,7 +69,14 @@ import extendCodeMirror from './extendCodeMirror';
       const cm = cellEditing.CodeMirror;
       cm.state.vimized = true;
       const vimKeyMap = new VimKeyMap();
+
+      // Add new methods to CodeMirror object
       extendCodeMirror(cm);
+
+      const { line, ch } = cm.getCursor();
+      if (ch == cm.getLineLength()) {
+        cm.setCursor({ line: line, length, ch: cm.getLastChAt(line) });
+      }
 
       cm.addKeyMap(vimKeyMap);
       enterVimMode(cm);

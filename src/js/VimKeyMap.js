@@ -1,19 +1,7 @@
-import defaultKeyMap from './defaultKeyMap';
-import * as cmu from './CodeMirrorUtils';
 import { enableFatCursor, disableFatCursor } from './CodeMirrorUtils';
 import InputState from './InputState';
 import keyMap from './defaultKeyMap';
 import commandSearch from './commandSearch';
-
-/* Code to restore console.log
-```
-(function(){
-  var f = document.body.appendChild(document.createElement('iframe'));
-  f.style.display = 'none';
-  window.console = f.contentWindow.console;
-})();
-```
-*/
 
 const toVimKey = key => {
   if (key.charAt(0) === "'") {
@@ -64,15 +52,10 @@ export default class VimKeyMap {
     // this.fallthrough = ['default'];
   }
 
+  // This function is called every time you type something
   call = (key, cm) => {
-    // For Windows, changing the default keymap disables Ctrl-C
-    // For Mac, Cmd-C works as usual
-    // Linux, I haven't checked yet
-    if (key === 'Ctrl-C') {
-      document.execCommand('copy');
-    }
-    // For a single alphabet (e.g. A, B, C), another key event is dispatched with "'<char>'"
-    // This line is for ignoring the event.
+    // For a single character, another key event is dispatched with "'<char>'"
+    // This line is for ignoring the fisrt event.
     if (key.length === 1) {
       return key;
     }
@@ -86,12 +69,19 @@ export default class VimKeyMap {
     }
 
     if (this.insertMode) {
+      // Sepcail case for JK to leave the insert mode
       if (this.inputState.keyBuffer.join('').endsWith('jk')) {
         this.processJK(cm);
         this.leaveInsertMode(cm);
+        this.inputState.initialize();
       }
       return vimKey;
     } else {
+      /* The cursor class needs to be updated every time
+       * because the cell state is refreshed and fat-cursor class is erased
+       * when you mutate the cell state
+       */
+      window.setTimeout(enableFatCursor, 0);
       return this.processKeyNormal(cm, vimKey, 'normal');
     }
   };
@@ -115,11 +105,10 @@ export default class VimKeyMap {
   };
 
   processJK = cm => {
-    // Vim mode is switched to the normal mode before 'k' is typed.
-    // All you need to remove is 'J' and the cursor character offset is set to -1.
+    // Note that Vim mode is switched to the normal mode before 'k' is typed.
     const to = cm.getCursor();
-    const from = cmu.offsetCursor(to, -1);
-    cmu.removeRange(cm, { from, to });
+    const from = cm.offsetCursor(to, -1);
+    cm.replaceRange('', from, to);
   };
 
   evalInput = cm => {
@@ -143,10 +132,13 @@ export default class VimKeyMap {
       inputState.setMotion('expandToLine');
       inputState.setMotionArgs({ linewise: true });
       this.evalInput(cm);
+      inputState.initialize();
+      // window.setTimeout(enableFatCursor, 0);
       return;
     }
     inputState.setOperator(cmd.operator);
     inputState.setOperatorArgs(cmd.operatorArgs);
+    // window.setTimeout(enableFatCursor, 0);
   };
 
   processMotion = (_cm, cmd) => {
@@ -189,22 +181,25 @@ export default class VimKeyMap {
 
     const cur = motions[cmd.motion](_cm, cmd.motionArgs);
     _cm.setCursor(cur);
-    window.setTimeout(enableFatCursor, 0);
+    // window.setTimeout(enableFatCursor, 0);
   };
 
   processAction = (_cm, cmd) => {
+    if (this.inputState.operator) {
+      return;
+    }
     const actions = {
       newLineAndEnterInsertMode: (cm, actionArgs) => {
         const cur = cm.getCursor();
-        if (cur.line === cm.firstLine() && !actionArgs.after) {
-          // Special case for inserting newline before start of document.
+        if (cm.isFirstLine() && !actionArgs.after) {
           cm.replaceRange('\n', { line: cm.firstLine(), ch: 0 });
           cm.setCursor(cm.firstLine(), 0);
         } else {
-          const indent = cmu.getIndent(cm);
+          const indent = cm.getIndent(cm);
+          const newLine = actionArgs.after ? cur.line : cur.line - 1;
           const newCur = {
-            line: actionArgs.after ? cur.line : cur.line - 1,
-            ch: cm.getLine(cur.line).length,
+            line: newLine,
+            ch: cm.getLineLengthAt(newLine),
           };
           cm.setCursor(newCur);
           cm.replaceSelection('\n' + indent);
@@ -215,7 +210,7 @@ export default class VimKeyMap {
         if (actionArgs) {
           switch (actionArgs.insertAt) {
             case 'charAfter':
-              cm.setCursor(cm.getRight());
+              cm.setCursor(cm.getRight(true));
               break;
             case 'endOfLine':
               cm.setCursor(cm.offsetCursor(cm.getLineEnd(), 1));
@@ -236,6 +231,10 @@ export default class VimKeyMap {
 
   processKeyNormal = (cm, key, context) => {
     const cmd = commandSearch(key, keyMap, context);
+    /*
+     * cmd.type select innerWord
+     *
+     */
     console.log(cmd);
     if (cmd) {
       switch (cmd.type) {
