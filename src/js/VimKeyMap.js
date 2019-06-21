@@ -140,7 +140,12 @@ export default class VimKeyMap {
         cm.replaceRange('', range.head, range.anchor);
       },
       change: (cm, range) => {
+        const cur = cm.getCursor();
         cm.replaceRange('', range.head, range.anchor);
+
+        if (range.head.ch - cur.ch === 1) {
+          cm.setCursor(cm.getCursorOffset(1));
+        }
         this.enterInsertMode(cm);
       },
       yank: (cm, range) => {
@@ -165,7 +170,7 @@ export default class VimKeyMap {
     if (inputState.operator) {
       const range = _cm.expandToLine();
       const text = _cm.getRange(range.head, range.anchor);
-      register.setText('\n' + text.slice(0, -1));
+      register.setText('\n' + text.replace(/^\s+|\s+$/g, ''));
       register.setLinewise(true);
       operators[inputState.operator](_cm, range);
       inputState.initialize();
