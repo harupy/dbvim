@@ -232,6 +232,7 @@ export default class VimKeyMap {
     };
 
     const { inputState } = this;
+    const isRange = x => (x.head ? true : false);
 
     inputState.setMotion(cmd.motion);
     inputState.setMotionArgs(cmd.motionArgs);
@@ -243,7 +244,7 @@ export default class VimKeyMap {
     if (inputState.operator) {
       this.processOperator(_cm, {
         operator: inputState.operator,
-        range: motionResult.head ? motionResult : { head: cur, anchor: motionResult },
+        range: isRange(motionResult) ? motionResult : { head: cur, anchor: motionResult },
       });
       return;
     }
