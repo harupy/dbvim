@@ -153,6 +153,9 @@ export default class VimKeyMap {
       },
     };
 
+    if (!operators[cmd.operator]) {
+      return;
+    }
     const { inputState, register } = this;
 
     // When called from 'processMotion'
@@ -233,6 +236,9 @@ export default class VimKeyMap {
     inputState.setMotion(cmd.motion);
     inputState.setMotionArgs(cmd.motionArgs);
     const cur = _cm.getCursor();
+    if (!motions[cmd.motion]) {
+      return;
+    }
     const motionResult = motions[cmd.motion](_cm, cmd.motionArgs);
     if (inputState.operator) {
       this.processOperator(_cm, {
@@ -308,6 +314,10 @@ export default class VimKeyMap {
     const { inputState } = this;
 
     if (inputState.operator) {
+      return;
+    }
+
+    if (!actions[cmd.action]) {
       return;
     }
     actions[cmd.action](_cm, cmd.actionArgs);
