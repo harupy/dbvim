@@ -173,7 +173,7 @@ export default class VimKeyMap {
     if (inputState.operator) {
       const range = _cm.expandToLine();
       const text = _cm.getRange(range.head, range.anchor);
-      register.setText('\n' + text.replace(/^\s+|\s+$/g, ''));
+      register.setText('\n' + text.replace(/^\n+|\n+$/g, ''));
       register.setLinewise(true);
       operators[inputState.operator](_cm, range);
       inputState.initialize();
