@@ -135,7 +135,7 @@ const funcs = {
 
   getLineEnd: function() {
     const line = this._getLine();
-    return { line, ch: this.getLastChAt(line) };
+    return { line, ch: this.getLineAt(line).length - 1 };
   },
 
   getDocumentEnd: function() {

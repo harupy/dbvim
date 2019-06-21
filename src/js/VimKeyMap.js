@@ -282,10 +282,12 @@ export default class VimKeyMap {
       paste: cm => {
         if (this.register.linewise) {
           cm.setCursor(cm.getLineEnd());
+          cm.replaceSelection(this.register.text);
+          cm.setCursor(cm.findFirstNonBlank());
+        } else {
+          cm.setCursor(cm.getCursorOffset(1));
+          cm.replaceSelection(this.register.text);
         }
-
-        cm.setCursor(cm.getCursorOffset(1));
-        cm.replaceSelection(this.register.text);
       },
 
       undo: cm => {
