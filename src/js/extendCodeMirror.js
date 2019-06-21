@@ -366,7 +366,7 @@ const funcs = {
   },
 
   findInnerWord: function(inclusive = true) {
-    const wordStart = this.findWordBeginLeft(inclusive, false);
+    const wordStart = this.findWordBeginLeft(!inclusive, false);
     const wordEnd = this.findWordEndRight(inclusive, false);
 
     return { head: wordStart, anchor: this.offsetCursor(wordEnd, 1) };
