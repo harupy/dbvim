@@ -286,7 +286,7 @@ const funcs = {
     return this.getDocumentEnd();
   },
 
-  findWordBeginLeft: function(inclusive = false) {
+  findWordBeginLeft: function(inclusive = false, throughLines = true) {
     const { line, ch } = this.getCursor();
 
     const wordSeparator = '\\\\()"\':,.;<>~!@#$%^&*|+=[\\]{}`?-';
@@ -305,13 +305,17 @@ const funcs = {
         return { line: l, ch: wordBegin };
       }
 
+      if (!throughLines) {
+        return { line: l, ch: 0 };
+      }
+
       l--;
     }
 
     return this.getDocumentBegin();
   },
 
-  findWordEndRight: function(inclusive = false) {
+  findWordEndRight: function(inclusive = false, throughLines = true) {
     const { line, ch } = this.getCursor();
     const wordSeparator = '\\\\()"\':,.;<>~!@#$%^&*|+=[\\]{}`?-';
     const regexp = new RegExp(`([^\\s${wordSeparator}]+|[${wordSeparator}]+)`, 'ug');
@@ -325,6 +329,10 @@ const funcs = {
 
       if (wordEnd !== undefined) {
         return { line: l, ch: wordEnd };
+      }
+
+      if (!throughLines) {
+        return { line: l, ch: lineStr.length };
       }
 
       l++;
@@ -358,8 +366,8 @@ const funcs = {
   },
 
   findInnerWord: function(inclusive = true) {
-    const wordStart = this.findWordBeginLeft(inclusive);
-    const wordEnd = this.findWordEndRight(inclusive);
+    const wordStart = this.findWordBeginLeft(inclusive, false);
+    const wordEnd = this.findWordEndRight(inclusive, false);
 
     return { head: wordStart, anchor: this.offsetCursor(wordEnd, 1) };
   },
