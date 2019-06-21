@@ -143,6 +143,9 @@ export default class VimKeyMap {
         cm.replaceRange('', range.head, range.anchor);
         this.enterInsertMode(cm);
       },
+      yank: (cm, range) => {
+        return;
+      },
     };
 
     const { inputState, register } = this;
@@ -168,6 +171,7 @@ export default class VimKeyMap {
       inputState.initialize();
       return;
     }
+
     inputState.setOperator(cmd.operator);
     inputState.setOperatorArgs(cmd.operatorArgs);
     inputState.clearKeyBuffer();
@@ -281,7 +285,8 @@ export default class VimKeyMap {
 
       paste: cm => {
         if (this.register.linewise) {
-          cm.setCursor(cm.getLineEnd());
+          const cur = cm.offsetCursor(cm.getLineEnd(), 1);
+          cm.setCursor(cur);
           cm.replaceSelection(this.register.text);
           cm.setCursor(cm.findFirstNonBlank());
         } else {
