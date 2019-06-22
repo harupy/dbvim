@@ -51,6 +51,7 @@ export default class VimKeyMap {
     this.inputState = new InputState();
     this.register = new Register();
     this.insertMode = false;
+    this.usedJK = false;
     // this.fallthrough = ['default'];
   }
 
@@ -78,6 +79,7 @@ export default class VimKeyMap {
       // Special case for JK to leave the insert mode
       if (inputState.keyBefore === 'j' && vimKey === 'k') {
         this.processJK(cm);
+        this.usedJK = true;
         this.leaveInsertMode(cm);
         return;
       }
@@ -117,6 +119,7 @@ export default class VimKeyMap {
     const to = cm.getCursor();
     const from = cm.offsetCursor(to, -1);
     cm.replaceRange('', from, to);
+    this.usedJK = true;
   };
 
   evalInput = cm => {
@@ -302,6 +305,11 @@ export default class VimKeyMap {
       },
 
       undo: cm => {
+        if (this.usedJK) {
+          cm.execCommand('undo');
+          cm.execCommand('undo');
+          this.usedJK = false;
+        }
         cm.execCommand('undo');
       },
     };
