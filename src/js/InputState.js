@@ -1,32 +1,53 @@
 export default class InputState {
   constructor() {
-    this.keyBefore = '';
-    this.text = '';
-    this.initialize();
+    this.lastEditKeySeq = [];
+    this.initAll();
   }
 
-  initialize = () => {
-    this.prefixRepeat = [];
-    this.motionRepeat = [];
+  initAll = () => {
+    this.initLastKey();
+    this.initMotion();
+    this.initOperator();
+    this.initKeyBuffer();
+    this.initKeySeq();
+  };
 
-    this.operator = null;
-    this.operatorArgs = null;
+  initMotion = () => {
     this.motion = null;
     this.motionArgs = null;
-    this.keyBuffer = []; // For matching multi-key commands.
-    this.registerName = null; // Defaults to the unnamed register.
   };
 
-  appendKeyBuffer = key => {
-    this.keyBuffer.append(key);
+  initLastKey = () => {
+    this.lastKey = '';
   };
 
-  clearKeyBuffer = () => {
+  initOperator = () => {
+    this.operator = null;
+    this.operatorArgs = null;
+  };
+
+  initKeyBuffer = () => {
     this.keyBuffer = [];
   };
 
-  setText = text => {
-    this.text = text;
+  initKeySeq = () => {
+    this.keySeq = [];
+  };
+
+  appendKeyBuffer = key => {
+    this.keyBuffer.push(key);
+  };
+
+  appendKeySeq = key => {
+    this.keySeq.push(key);
+  };
+
+  updateLastEditKeySeq = () => {
+    this.lastEditKeySeq = [...this.keySeq];
+  };
+
+  joinKeyBuffer = () => {
+    return this.keyBuffer.join('');
   };
 
   setOperator = operator => {
@@ -49,7 +70,7 @@ export default class InputState {
     this.registerName = registerName;
   };
 
-  setKeyBefore = key => {
-    this.keyBefore = key;
+  setLastKey = key => {
+    this.lastKey = key;
   };
 }
