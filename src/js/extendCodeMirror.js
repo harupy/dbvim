@@ -365,14 +365,24 @@ const funcs = {
     return this.getDocumentBegin();
   },
 
-  findInnerWord: function(inclusive = true) {
-    const wordStart = this.findWordBeginLeft(!inclusive, false);
-    const wordEnd = this.findWordEndRight(inclusive, false);
+  findWord: function(inner = true) {
+    let start, end;
+    if (inner) {
+      start = this.findWordBeginLeft(inner);
+      end = this.findWordEndRight(inner);
+      return { head: start, anchor: this.offsetCursor(end, 1) };
+    } else {
+      const cur = this.getCursor();
+      end = this.findWordBeginRight();
+      const containsSpace = this.getRange(cur, end).indexOf(' ') > -1;
 
-    return { head: wordStart, anchor: this.offsetCursor(wordEnd, 1) };
+      start = containsSpace ? this.findWordBeginLeft(inner) : this.findWordEndLeft();
+      const offset = containsSpace ? 0 : 1;
+      return { head: this.offsetCursor(start, offset), anchor: end };
+    }
   },
 
-  findMatchingPair: function(motionArgs) {
+  findSurrounding: function(motionArgs) {
     const mirroredPairs = {
       '(': ')',
       ')': '(',
@@ -384,26 +394,25 @@ const funcs = {
       '>': '<',
     };
     const selfPaired = { "'": true, '"': true, '`': true };
-
-    let character = motionArgs.selectedCharacter;
-    if (character == 'b') {
-      character = '(';
-    } else if (character == 'B') {
-      character = '{';
+    let char = motionArgs.charToMatch;
+    if (char == 'b') {
+      char = '(';
+    } else if (char == 'B') {
+      char = '{';
     }
 
-    const inclusive = !motionArgs.textObjectInner;
+    const { inner } = motionArgs;
 
-    if (mirroredPairs[character]) {
-      return this.selectCompanionObject(character, inclusive);
-    } else if (selfPaired[character]) {
-      return this.findBeginningAndEnd(character, inclusive);
-    } else if (character === 'w') {
-      return this.findInnerWord(inclusive);
+    if (mirroredPairs[char]) {
+      return this.findCompanionObject(char, inner);
+    } else if (selfPaired[char]) {
+      return this.findQuoteOrBacktick(char, inner);
+    } else if (char === 'w') {
+      return this.findWord(inner);
     }
   },
 
-  selectCompanionObject: function(symb, inclusive) {
+  findCompanionObject: function(symb, inner) {
     const cur = this.getCursor();
     let start, end;
 
@@ -450,7 +459,7 @@ const funcs = {
       end = tmp;
     }
 
-    if (inclusive) {
+    if (!inner) {
       end.ch++;
     } else {
       start.ch++;
@@ -459,7 +468,7 @@ const funcs = {
     return { head: start, anchor: end };
   },
 
-  findBeginningAndEnd: function(symb, inclusive) {
+  findQuoteOrBacktick: function(symb, inner) {
     let cur = this.getCursor();
     let line = this.getLine(cur.line);
     const chars = line.split('');
@@ -503,7 +512,7 @@ const funcs = {
     }
 
     // include the symbols
-    if (inclusive) {
+    if (!inner) {
       --start;
       ++end;
     }

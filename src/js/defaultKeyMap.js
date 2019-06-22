@@ -125,13 +125,13 @@ export default [
   {
     keys: '{',
     type: 'motion',
-    motion: 'moveByParagraph',
+    motion: 'moveByParagraphs',
     motionArgs: { forward: false, toJumplist: true },
   },
   {
     keys: '}',
     type: 'motion',
-    motion: 'moveByParagraph',
+    motion: 'moveByParagraphs',
     motionArgs: { forward: true, toJumplist: true },
   },
   { keys: '(', type: 'motion', motion: 'moveBySentence', motionArgs: { forward: false } },
@@ -162,7 +162,7 @@ export default [
     motion: 'moveToLineOrEdgeOfDocument',
     motionArgs: { forward: true, explicitRepeat: true, linewise: true, toJumplist: true },
   },
-  { keys: '0', type: 'motion', motion: 'moveToStartOfLine' },
+  { keys: '0', type: 'motion', motion: 'moveToLineEnd' },
   { keys: '^', type: 'motion', motion: 'moveToFirstNonBlank' },
   {
     keys: '+',
@@ -182,7 +182,7 @@ export default [
     motion: 'moveByLines',
     motionArgs: { forward: true, toFirstChar: true, repeatOffset: -1 },
   },
-  { keys: '$', type: 'motion', motion: 'moveToEndOfLine', motionArgs: { inclusive: true } },
+  { keys: '$', type: 'motion', motion: 'moveToLineEnd', motionArgs: { inclusive: true } },
   {
     keys: '%',
     type: 'motion',

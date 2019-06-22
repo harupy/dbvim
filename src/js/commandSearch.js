@@ -9,16 +9,16 @@ export default (keys, keyMap, context) => {
     return {
       keys_,
       type: 'motion',
-      motion: 'textObjectManipulation',
-      motionArgs: { textObjectInner: true, selectedCharacter: match[1] },
+      motion: 'moveByObjects',
+      motionArgs: { inner: true, charToMatch: match[1] },
     };
   } else if (/^a(.)$/.test(keys_)) {
     const match = /^a(.)/.exec(keys_);
     return {
       keys_,
       type: 'motion',
-      motion: 'textObjectManipulation',
-      motionArgs: { textObjectInner: false, selectedCharacter: match[1] },
+      motion: 'moveByObjects',
+      motionArgs: { inner: false, charToMatch: match[1] },
     };
   }
   // Some key have multiple command types

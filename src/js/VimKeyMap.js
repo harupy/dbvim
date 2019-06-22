@@ -206,11 +206,11 @@ export default class VimKeyMap {
           : cm.findWordBeginLeft();
       },
 
-      moveToStartOfLine: cm => {
+      moveToLineBegin: cm => {
         return cm.getLineBegin();
       },
 
-      moveToEndOfLine: cm => {
+      moveToLineEnd: cm => {
         return cm.getLineEnd();
       },
 
@@ -218,25 +218,20 @@ export default class VimKeyMap {
         return cm.findFirstNonBlank();
       },
 
-      moveByParagraph: (cm, motionArgs) => {
+      moveByParagraphs: (cm, motionArgs) => {
         return motionArgs.forward ? cm.findParagraphBelow() : cm.findParagraphAbove();
       },
 
-      selectInnerWord: cm => {
-        return cm.findInnerWord();
-      },
-
-      textObjectManipulation: (cm, motionArgs) => {
-        return cm.findMatchingPair(motionArgs);
+      moveByObjects: (cm, motionArgs) => {
+        return cm.findSurrounding(motionArgs);
       },
     };
 
+    const cur = _cm.getCursor();
     const { inputState } = this;
-    const isRange = x => (x.head ? true : false);
 
     inputState.setMotion(cmd.motion);
     inputState.setMotionArgs(cmd.motionArgs);
-    const cur = _cm.getCursor();
     if (!motions[cmd.motion]) {
       return;
     }
@@ -244,14 +239,13 @@ export default class VimKeyMap {
     if (inputState.operator) {
       this.processOperator(_cm, {
         operator: inputState.operator,
-        range: isRange(motionResult) ? motionResult : { head: cur, anchor: motionResult },
+        range: motionResult.head ? motionResult : { head: cur, anchor: motionResult },
       });
       return;
     }
 
     _cm.setCursor(motionResult);
     inputState.initialize();
-    // window.setTimeout(enableFatCursor, 0);
   };
 
   processAction = (_cm, cmd) => {
@@ -265,7 +259,7 @@ export default class VimKeyMap {
           cm.replaceRange('\n', { line: cm.firstLine(), ch: 0 });
           cm.setCursor(cm.firstLine(), 0);
         } else {
-          const indent = cm.getIndent(cm);
+          const indent = cm.getIndent();
           const newLine = actionArgs.after ? cur.line : cur.line - 1;
           const newCur = {
             line: newLine,
