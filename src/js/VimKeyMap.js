@@ -294,7 +294,7 @@ export default class VimKeyMap {
 
       paste: cm => {
         if (this.register.linewise) {
-          const cur = cm.offsetCursor(cm.getLineEnd(), 1);
+          const cur = cm.getLineEnd(true);
           cm.setCursor(cur);
           cm.replaceSelection(this.register.text);
           cm.setCursor(cm.findFirstNonBlank());

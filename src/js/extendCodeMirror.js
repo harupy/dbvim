@@ -78,7 +78,7 @@ const funcs = {
     return this.getLineAt(line + offset);
   },
 
-  getRight: function(beyondLineEnd = false) {
+  getRight: function(beyond = false) {
     const { line, ch } = this.getCursor();
     if (this.isEmpty()) {
       return { line, ch };
@@ -87,9 +87,9 @@ const funcs = {
     if (this.isLineEnd()) {
       const lastCh = this.getLastCh();
       if (this.isLastLine()) {
-        return beyondLineEnd ? { line, ch: lastCh + 1 } : { line, ch: lastCh };
+        return beyond ? { line, ch: lastCh + 1 } : { line, ch: lastCh };
       } else {
-        return beyondLineEnd ? { line, ch: lastCh + 1 } : { line: line + 1, ch: 0 };
+        return beyond ? { line, ch: lastCh + 1 } : { line: line + 1, ch: 0 };
       }
     }
     return { line, ch: ch + 1 };
@@ -133,9 +133,9 @@ const funcs = {
     return { line: this._getLine(), ch: 0 };
   },
 
-  getLineEnd: function() {
+  getLineEnd: function(beyond = false) {
     const line = this._getLine();
-    return { line, ch: this.getLineAt(line).length - 1 };
+    return { line, ch: this.getLineLengthAt(line) + (beyond ? 0 : -1) };
   },
 
   getDocumentEnd: function() {
