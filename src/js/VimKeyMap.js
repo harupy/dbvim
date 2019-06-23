@@ -179,6 +179,7 @@ export default class VimKeyMap {
     if (this.visualMode) {
       const range = _cm.listSelections()[0];
       operator(_cm, range);
+      _cm.setCursor(range.head);
       this.toggleVisualMode(_cm);
       return;
     }
@@ -272,7 +273,7 @@ export default class VimKeyMap {
 
     if (this.visualMode) {
       if (motionResult.head) {
-        _cm.setSelection(motionResult.anchor, motionResult.head);
+        _cm.setSelection(motionResult.head, motionResult.anchor);
       } else {
         _cm.setSelection(anchor, motionResult);
       }
@@ -368,6 +369,7 @@ export default class VimKeyMap {
           this.usedJK = false;
         }
         cm.execCommand('undo');
+        cm.setSelection(cm.getCursor());
       },
 
       repeatLastEdit: cm => {
