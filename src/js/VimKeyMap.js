@@ -1,7 +1,7 @@
-import { enableFatCursor, disableFatCursor } from './CodeMirrorUtils';
 import InputState from './InputState';
 import Register from './Register';
 import keyMap from './defaultKeyMap';
+import * as cu from './cursorUtils';
 import commandSearch from './commandSearch';
 
 const toVimKey = key => {
@@ -9,7 +9,7 @@ const toVimKey = key => {
     return key.slice(1, -1);
   }
 
-  const isSingleChar = key => {
+  const isChar = key => {
     return key.length === 1;
   };
 
@@ -17,7 +17,7 @@ const toVimKey = key => {
     return /[a-zA-Z]/.test(key);
   };
 
-  if (isSingleChar(key)) {
+  if (isChar(key)) {
     if (isAlphabet) {
       return key.toLowerCase();
     } else {
@@ -25,20 +25,19 @@ const toVimKey = key => {
     }
   }
 
-  // Process a key combination (e.g. Shift-M, Ctrl-E)
+  // process a key combination (e.g. shift-m, ctrl-e)
   const pieces = key.split('-');
 
   if (pieces.length == 2) {
     const [modKey, normKey] = pieces;
 
-    // In CodeMirror, when you press the only "Shift" key, it is expressed as "Shift-Shift"
     if (modKey === normKey) {
       return modKey;
     }
 
-    // Process Shift - <alphabet> combination
+    // process shift - <alphabet> combination
     if (modKey.toLowerCase() === 'shift') {
-      if (isSingleChar(normKey) && isAlphabet(normKey)) {
+      if (isChar(normKey) && isAlphabet(normKey)) {
         return normKey.toUpperCase();
       }
     }
@@ -51,14 +50,20 @@ export default class VimKeyMap {
     this.inputState = new InputState();
     this.register = new Register();
     this.insertMode = false;
+    this.normalMode = true;
+    this.visualMode = false;
     this.usedJK = false;
-    // this.fallthrough = ['default'];
   }
 
-  // This function is called every time you type something
+  getMode = () => {
+    const { insertMode, normalMode } = this;
+    return insertMode ? 'insert' : normalMode ? 'normal' : 'visual';
+  };
+
+  // called every time you type something
   call = (key, cm) => {
-    // For a single character, another key event is dispatched with "'<char>'"
-    // This line is for ignoring the first event.
+    // for a single character, another key event is dispatched with "'<char>'"
+    // this line is for ignoring the first event.
     if (key.charAt(0) !== "'") {
       return key;
     }
@@ -71,17 +76,17 @@ export default class VimKeyMap {
     }
 
     if (this.insertMode) {
-      // Special case for JK to leave the insert mode
+      // special case for 'jk' to leave the insert mode
       if (inputState.lastKey === 'j' && vimKey === 'k') {
         this.processJK(cm);
         this.usedJK = true;
-        this.leaveInsertMode(cm);
+        this.enterNormalMode(cm);
         return;
       }
       inputState.setLastKey(vimKey);
       return vimKey;
     } else {
-      /* The cursor class needs to be updated every time
+      /* the cursor class needs to be updated every time
        * because the cell state is refreshed and fat-cursor class is erased
        * when you mutate the cell state
        */
@@ -95,83 +100,96 @@ export default class VimKeyMap {
       console.log('Key buffer: ', this.inputState.keyBuffer);
       console.log('Key sequence: ', this.inputState.keySeq);
       console.log('Last edit key sequence', this.inputState.lastEditKeySeq);
-      window.setTimeout(enableFatCursor, 0);
-      return this.processKeyNormal(cm, keys, 'normal');
+      cu.enableFatCursor();
+      return this.processKeyNormal(cm, keys, this.getMode());
     }
   };
 
   enterInsertMode = cm => {
     this.insertMode = true;
+    this.normalMode = false;
+    this.visualMode = false;
     this.inputState.initAll();
     cm.setOption('disableInput', false);
     cm.setOption('showCursorWhenSelecting', true);
-    window.setTimeout(disableFatCursor, 0);
+    cu.disableFatCursor();
   };
 
-  leaveInsertMode = cm => {
+  enterNormalMode = cm => {
     this.insertMode = false;
+    this.normalMode = true;
+    this.visualMode = false;
     this.inputState.initAll();
-    const { ch, line } = cm.getCursor();
-    cm.setCursor({ ch: ch - 1, line });
+    cm.setCursor(cm.getLeft(false));
     cm.setOption('disableInput', true);
     cm.setOption('showCursorWhenSelecting', false);
-    window.setTimeout(enableFatCursor, 0);
+    cu.enableFatCursor();
+  };
+
+  toggleVisualMode = cm => {
+    this.insertMode = false;
+    if (this.visualMode) {
+      // const head = cm.getCursor('head');
+      // const anchor = cm.getCursor('anchor');
+      // cm.setCursor(anchor.ch < head.ch ? anchor : head);
+      this.visualMode = false;
+      this.normalMode = true;
+    } else {
+      // cm.setSelection(cm.getRight(true), cm.getCursor());
+      this.visualMode = true;
+      this.normalMode = false;
+    }
+    this.inputState.initAll();
   };
 
   processJK = cm => {
-    // Note that Vim mode is switched to the normal mode before 'k' is typed.
+    // note that Vim mode is switched to the normal mode before 'k' is typed.
     const to = cm.getCursor();
     const from = cm.offsetCursor(to, -1);
     cm.replaceRange('', from, to);
     this.usedJK = true;
   };
 
-  evalInput = cm => {
-    const { inputState } = this;
-    let newHead, newAnchor;
-
-    if (inputState.motion) {
-      if (inputState.motionArgs.linewise) {
-        const range = cm.expandToLine();
-        newHead = range.head;
-        newAnchor = range.anchor;
-      }
-    }
-
-    cm.replaceRange('', newHead, newAnchor);
-  };
-
   processOperator = (_cm, cmd) => {
     const operators = {
       delete: (cm, range) => {
-        cm.replaceRange('', range.head, range.anchor);
+        cm.replaceRange('', range.anchor, range.head);
+        cm.setCursor(range.anchor);
       },
-      change: (cm, range) => {
-        const cur = cm.getCursor();
-        cm.replaceRange('', range.head, range.anchor);
 
-        if (range.head.ch - cur.ch === 1) {
-          cm.setCursor(cm.getCursorOffset(1));
-        }
+      change: (cm, range) => {
+        cm.replaceRange('', range.anchor, range.head);
+        cm.setCursor(range.anchor);
         this.enterInsertMode(cm);
       },
+
       yank: (cm, range) => {
         return;
       },
     };
 
-    if (!operators[cmd.operator]) {
+    const operator = operators[cmd.operator];
+
+    if (!operator) {
       return;
     }
+
     const { inputState, register } = this;
+
+    if (this.visualMode) {
+      const range = _cm.listSelections()[0];
+      operator(_cm, range);
+      this.toggleVisualMode(_cm);
+      return;
+    }
 
     // when called from 'processMotion'
     if (inputState.motion) {
-      const { range } = cmd;
-      const text = _cm.getRange(range.head, range.anchor);
+      const { range } = cmd.operatorArgs;
+      const text = _cm.getRange(range.anchor, range.head);
       register.setText(text);
       register.setLinewise(false);
-      operators[inputState.operator](_cm, range);
+      operator(_cm, range);
       inputState.updateLastEditKeySeq();
       inputState.initAll();
 
@@ -181,10 +199,10 @@ export default class VimKeyMap {
     // when repeated keys such as 'dd' are typed
     if (inputState.operator) {
       const range = _cm.expandToLine();
-      const text = _cm.getRange(range.head, range.anchor);
+      const text = _cm.getRange(range.anchor, range.head);
       register.setText('\n' + text.replace(/^\n+|\n+$/g, ''));
       register.setLinewise(true);
-      operators[inputState.operator](_cm, range);
+      operator(_cm, range);
       inputState.updateLastEditKeySeq();
       inputState.initAll();
       return;
@@ -198,11 +216,13 @@ export default class VimKeyMap {
   processMotion = (_cm, cmd) => {
     const motions = {
       moveByCharacters: (cm, motionArgs) => {
-        return motionArgs.forward ? cm.getRight() : cm.getLeft();
+        return motionArgs.forward ? cm.getRight(this.visualMode) : cm.getLeft();
       },
 
       moveByLines: (cm, motionArgs) => {
-        return motionArgs.forward ? cm.getLineBelow() : cm.getLineAbove();
+        return motionArgs.forward
+          ? cm.getLineBelow(this.visualMode)
+          : cm.getLineAbove(this.visualMode);
       },
 
       moveByWords: (cm, motionArgs) => {
@@ -221,7 +241,7 @@ export default class VimKeyMap {
       },
 
       moveToLineEnd: cm => {
-        return cm.getLineEnd();
+        return cm.getLineEnd(this.visualMode);
       },
 
       moveToFirstNonBlank: cm => {
@@ -237,21 +257,38 @@ export default class VimKeyMap {
       },
     };
 
-    const cur = _cm.getCursor();
-    const { inputState } = this;
-
-    inputState.setMotion(cmd.motion);
-    inputState.setMotionArgs(cmd.motionArgs);
     if (!motions[cmd.motion]) {
       return;
     }
+
+    const { inputState } = this;
+    const head = _cm.getCursor('head');
+    const anchor = _cm.getCursor('anchor');
+
+    inputState.setMotion(cmd.motion);
+    inputState.setMotionArgs(cmd.motionArgs);
+
     const motionResult = motions[cmd.motion](_cm, cmd.motionArgs);
+
+    if (this.visualMode) {
+      if (motionResult.head) {
+        _cm.setSelection(motionResult.anchor, motionResult.head);
+      } else {
+        _cm.setSelection(anchor, motionResult);
+      }
+
+      inputState.initAll();
+      return;
+    }
 
     // when called after an operator
     if (inputState.operator) {
+      const operatorArgs = {
+        range: motionResult.head ? motionResult : { anchor, head: motionResult },
+      };
       this.processOperator(_cm, {
         operator: inputState.operator,
-        range: motionResult.head ? motionResult : { head: cur, anchor: motionResult },
+        operatorArgs,
       });
       return;
     }
@@ -301,18 +338,27 @@ export default class VimKeyMap {
         this.enterInsertMode(cm);
       },
 
+      toggleVisualMode: cm => {
+        this.toggleVisualMode(cm);
+      },
+
       paste: cm => {
         if (this.register.linewise) {
-          const cur = cm.getLineEnd(true);
-          cm.setCursor(cur);
+          const lineEnd = cm.getLineEnd(true);
+          cm.setCursor(lineEnd);
           cm.replaceSelection(this.register.text);
           cm.setCursor(cm.findFirstNonBlank());
         } else {
-          cm.setCursor(cm.getCursorOffset(1));
+          if (!cm.somethingSelected()) {
+            cm.setCursor(cm.getCursorOffset(1));
+          }
           cm.replaceSelection(this.register.text);
         }
-
         this.inputState.updateLastEditKeySeq();
+
+        if (this.visualMode) {
+          this.toggleVisualMode(cm);
+        }
       },
 
       undo: cm => {
@@ -335,44 +381,65 @@ export default class VimKeyMap {
       },
     };
 
-    const { inputState } = this;
-
-    // when called after an operator
-    if (inputState.operator) {
-      return;
-    }
-
     if (!actions[cmd.action]) {
       return;
     }
+
+    const { inputState } = this;
+
+    if (this.visualMode) {
+      actions[cmd.action](_cm, cmd.actionArgs);
+      return;
+    }
+
     actions[cmd.action](_cm, cmd.actionArgs);
-    inputState.initAll();
+    if (!this.visualMode) {
+      inputState.initAll();
+    }
   };
 
   processKeyNormal = (cm, key, context) => {
-    const cmd = commandSearch(key, keyMap, context);
-    console.log(cmd);
-    if (cmd) {
-      switch (cmd.type) {
+    const match = commandSearch(key, keyMap, context, this.inputState);
+
+    switch (match.type) {
+      case 'none':
+        this.inputState.initAll();
+        return;
+      case 'partial':
+        return;
+      case 'full':
+        break;
+      default:
+        break;
+    }
+
+    if (match.command) {
+      console.log(match.command);
+      switch (match.command.type) {
         case 'motion':
-          this.processMotion(cm, cmd);
-          return () => {};
+          this.processMotion(cm, match.command);
+          break;
         case 'action': {
-          this.processAction(cm, cmd);
-          return () => {};
+          this.processAction(cm, match.command);
+          break;
         }
         case 'operator': {
-          this.processOperator(cm, cmd);
-          return () => {};
+          this.processOperator(cm, match.command);
+          break;
         }
         case 'operatorMotion': {
-          this.processOperator(cm, cmd);
-          this.processMotion(cm, cmd);
+          if (this.visualMode) {
+            this.processOperator(cm, match.command);
+          } else {
+            this.processOperator(cm, match.command);
+            this.processMotion(cm, match.command);
+          }
           break;
         }
         default:
-          return;
+          break;
       }
+      return () => {};
     } else {
       this.inputState.initAll();
     }

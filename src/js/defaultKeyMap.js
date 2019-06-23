@@ -579,12 +579,12 @@ export default [
     context: 'insert',
   },
   // Text object motions
-  { keys: 'a<character>', type: 'motion', motion: 'textObjectManipulation' },
+  { keys: 'a<character>', type: 'motion', motion: 'moveByObjects', motionArgs: { inner: false } },
   {
     keys: 'i<character>',
     type: 'motion',
-    motion: 'textObjectManipulation',
-    motionArgs: { textObjectInner: true },
+    motion: 'moveByObjects',
+    motionArgs: { inner: true },
   },
   // Search
   {

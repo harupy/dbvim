@@ -84,21 +84,25 @@ const funcs = {
       return { line, ch };
     }
 
-    if (this.isLineEnd()) {
+    if (this.isLineEnd(beyond)) {
       const lastCh = this.getLastCh();
       if (this.isLastLine()) {
         return beyond ? { line, ch: lastCh + 1 } : { line, ch: lastCh };
       } else {
-        return beyond ? { line, ch: lastCh + 1 } : { line: line + 1, ch: 0 };
+        return { line: line + 1, ch: 0 };
       }
     }
     return { line, ch: ch + 1 };
   },
 
-  getLeft: function() {
+  getLeft: function(throughLines = true) {
     const { line, ch } = this.getCursor();
 
     if (this.isLineBegin()) {
+      if (!throughLines) {
+        return { line, ch };
+      }
+
       if (this.isFirstLine()) {
         return this.getDocumentBegin();
       } else {
@@ -110,22 +114,23 @@ const funcs = {
     return { line, ch: ch - 1 };
   },
 
-  getLineBelow: function() {
+  getLineBelow: function(beyond) {
     const { line, ch } = this.getCursor();
     const lastLine = this.lastLine();
     const newLine = line + 1;
     const newCh =
       newLine > lastLine
-        ? this.getLineLengthAt(lastLine) - 1
-        : Math.min(ch, this.getLineLengthAt(newLine) - 1);
+        ? this.getLineLengthAt(lastLine) + (beyond ? 0 : -1)
+        : Math.min(ch, this.getLineLengthAt(newLine) - (beyond ? 0 : -1));
     return { line: Math.min(lastLine, newLine), ch: newCh };
   },
 
-  getLineAbove: function() {
+  getLineAbove: function(beyond) {
     const { line, ch } = this.getCursor();
     const firstLine = this.firstLine();
     const newLine = line - 1;
-    const newCh = newLine < firstLine ? 0 : Math.min(ch, this.getLineLengthAt(newLine) - 1);
+    const newCh =
+      newLine < firstLine ? 0 : Math.min(ch, this.getLineLengthAt(newLine) + (beyond ? 0 : -1));
     return { line: Math.max(0, newLine), ch: newCh };
   },
 
@@ -169,20 +174,20 @@ const funcs = {
     const lineLength = this.getLineLength();
 
     if (this.isSingleLine()) {
-      const head = { line: 0, ch: 0 };
-      const anchor = { line, ch: this.getLineLength() };
-      return { head, anchor };
+      const anchor = { line: 0, ch: 0 };
+      const head = { line, ch: this.getLineLength() };
+      return { anchor, head };
     }
 
     if (this.isLastLine()) {
       const lineLengthAbove = this.getLineLengthAt(line - 1);
-      const head = { line: line - 1, ch: lineLengthAbove };
-      const anchor = { line, ch: lineLength };
-      return { head, anchor };
+      const anchor = { line: line - 1, ch: lineLengthAbove };
+      const head = { line, ch: lineLength };
+      return { anchor, head };
     }
-    const head = { line, ch: 0 };
-    const anchor = { line: line + 1, ch: 0 };
-    return { head, anchor };
+    const anchor = { line, ch: 0 };
+    const head = { line: line + 1, ch: 0 };
+    return { anchor, head };
   },
 
   isFirstLine: function() {
@@ -197,8 +202,9 @@ const funcs = {
     return this.getCh() === 0;
   },
 
-  isLineEnd: function() {
-    return this.getLastCh() === this.getCh();
+  isLineEnd: function(beyond = false) {
+    console.log(this.getCh(), this.getLineLength());
+    return beyond ? this.getCh() === this.getLineLength() : this.getCh() === this.getLastCh();
   },
 
   isDocumentBegin: function() {
@@ -370,7 +376,7 @@ const funcs = {
     if (inner) {
       start = this.findWordBeginLeft(inner);
       end = this.findWordEndRight(inner);
-      return { head: start, anchor: this.offsetCursor(end, 1) };
+      return { anchor: start, head: this.offsetCursor(end, 1) };
     } else {
       const cur = this.getCursor();
       end = this.findWordBeginRight();
@@ -378,7 +384,7 @@ const funcs = {
 
       start = containsSpace ? this.findWordBeginLeft(inner) : this.findWordEndLeft();
       const offset = containsSpace ? 0 : 1;
-      return { head: this.offsetCursor(start, offset), anchor: end };
+      return { anchor: this.offsetCursor(start, offset), head: end };
     }
   },
 
@@ -447,7 +453,7 @@ const funcs = {
     });
 
     if (!start || !end) {
-      return { head: cur, anchor: cur };
+      return { anchor: cur, head: cur };
     }
 
     start = start.pos;
@@ -465,7 +471,7 @@ const funcs = {
       start.ch++;
     }
 
-    return { head: start, anchor: end };
+    return { anchor: start, head: end };
   },
 
   findQuoteOrBacktick: function(symb, inner) {
@@ -508,7 +514,7 @@ const funcs = {
 
     // nothing found
     if (!start || !end) {
-      return { head: cur, anchor: cur };
+      return { anchor: cur, head: cur };
     }
 
     // include the symbols
@@ -518,8 +524,8 @@ const funcs = {
     }
 
     return {
-      head: { line: cur.line, ch: start },
-      anchor: { line: cur.line, ch: end },
+      anchor: { line: cur.line, ch: start },
+      head: { line: cur.line, ch: end },
     };
   },
 };
