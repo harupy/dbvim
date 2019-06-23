@@ -203,7 +203,6 @@ const funcs = {
   },
 
   isLineEnd: function(beyond = false) {
-    console.log(this.getCh(), this.getLineLength());
     return beyond ? this.getCh() === this.getLineLength() : this.getCh() === this.getLastCh();
   },
 

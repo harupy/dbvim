@@ -62,6 +62,10 @@ export default class VimKeyMap {
 
   // called every time you type something
   call = (key, cm) => {
+    // prevent fat-cursor from getting disabled by click
+    if (this.normalMode) {
+      cu.enableFatCursor();
+    }
     // for a single character, another key event is dispatched with "'<char>'"
     // this line is for ignoring the first event.
     if (key.charAt(0) !== "'") {
@@ -79,6 +83,7 @@ export default class VimKeyMap {
       // special case for 'jk' to leave the insert mode
       if (inputState.lastKey === 'j' && vimKey === 'k') {
         this.processJK(cm);
+        console.log(cm.getHistory());
         this.usedJK = true;
         this.enterNormalMode(cm);
         return;
@@ -127,11 +132,11 @@ export default class VimKeyMap {
   };
 
   toggleVisualMode = cm => {
-    this.insertMode = false;
+    this.insertmode = false;
     if (this.visualMode) {
       // const head = cm.getCursor('head');
       // const anchor = cm.getCursor('anchor');
-      // cm.setCursor(anchor.ch < head.ch ? anchor : head);
+      cm.setCursor(cm.getCursor('anchor'));
       this.visualMode = false;
       this.normalMode = true;
     } else {
@@ -179,7 +184,9 @@ export default class VimKeyMap {
     if (this.visualMode) {
       const range = _cm.listSelections()[0];
       operator(_cm, range);
-      _cm.setCursor(range.head);
+      register.setText(_cm.getRange(range.anchor, range.head));
+      register.setLinewise(false);
+      _cm.setCursor(range.anchor);
       this.toggleVisualMode(_cm);
       return;
     }
@@ -187,13 +194,11 @@ export default class VimKeyMap {
     // when called from 'processMotion'
     if (inputState.motion) {
       const { range } = cmd.operatorArgs;
-      const text = _cm.getRange(range.anchor, range.head);
-      register.setText(text);
+      register.setText(_cm.getRange(range.anchor, range.head));
       register.setLinewise(false);
       operator(_cm, range);
       inputState.updateLastEditKeySeq();
       inputState.initAll();
-
       return;
     }
 
@@ -273,7 +278,7 @@ export default class VimKeyMap {
 
     if (this.visualMode) {
       if (motionResult.head) {
-        _cm.setSelection(motionResult.head, motionResult.anchor);
+        _cm.setSelection(motionResult.anchor, motionResult.head);
       } else {
         _cm.setSelection(anchor, motionResult);
       }
@@ -369,7 +374,7 @@ export default class VimKeyMap {
           this.usedJK = false;
         }
         cm.execCommand('undo');
-        cm.setSelection(cm.getCursor());
+        cm.setCursor(cm.getCursor('anchor'));
       },
 
       repeatLastEdit: cm => {
