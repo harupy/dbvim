@@ -183,9 +183,9 @@ export default class VimKeyMap {
 
     if (this.visualMode) {
       const range = _cm.listSelections()[0];
-      operator(_cm, range);
       register.setText(_cm.getRange(range.anchor, range.head));
       register.setLinewise(false);
+      operator(_cm, range);
       _cm.setCursor(range.anchor);
       this.toggleVisualMode(_cm);
       return;
