@@ -176,13 +176,13 @@ export default class VimKeyMap {
       },
     };
 
+    const { inputState, register } = this;
     const operator = operators[cmd.operator];
 
     if (!operator) {
+      inputState.initAll();
       return;
     }
-
-    const { inputState, register } = this;
 
     if (this.visualMode) {
       const range = _cm.listSelections()[0];
@@ -266,18 +266,21 @@ export default class VimKeyMap {
       },
     };
 
-    if (!motions[cmd.motion]) {
+    const { inputState } = this;
+    const motion = motions[cmd.motion];
+
+    if (!motion) {
+      inputState.initAll();
       return;
     }
 
-    const { inputState } = this;
     const head = _cm.getCursor('head');
     const anchor = _cm.getCursor('anchor');
 
     inputState.setMotion(cmd.motion);
     inputState.setMotionArgs(cmd.motionArgs);
 
-    const motionResult = motions[cmd.motion](_cm, cmd.motionArgs);
+    const motionResult = motion(_cm, cmd.motionArgs);
 
     if (!motionResult) {
       inputState.initAll();
@@ -396,11 +399,13 @@ export default class VimKeyMap {
       },
     };
 
-    if (!actions[cmd.action]) {
+    const { inputState } = this;
+    const action = actions[cmd.action];
+
+    if (!action) {
+      inputState.initAll();
       return;
     }
-
-    const { inputState } = this;
 
     if (this.visualMode) {
       actions[cmd.action](_cm, cmd.actionArgs);
@@ -415,7 +420,7 @@ export default class VimKeyMap {
 
   processKeyNormal = (cm, key, context) => {
     const match = commandSearch(key, keyMap, context, this.inputState);
-
+    console.log(match.type);
     switch (match.type) {
       case 'none':
         this.inputState.initAll();
