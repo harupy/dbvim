@@ -279,6 +279,11 @@ export default class VimKeyMap {
 
     const motionResult = motions[cmd.motion](_cm, cmd.motionArgs);
 
+    if (!motionResult) {
+      inputState.initAll();
+      return;
+    }
+
     if (this.visualMode) {
       if (motionResult.head) {
         _cm.setSelection(motionResult.anchor, motionResult.head);
