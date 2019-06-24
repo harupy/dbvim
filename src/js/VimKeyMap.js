@@ -329,7 +329,7 @@ export default class VimKeyMap {
         if (actionArgs) {
           switch (actionArgs.insertAt) {
             case 'charAfter':
-              cm.setCursor(cm.getRight(true));
+              cm.setCursor(cm.isLineEnd(true) ? cm.getCursor() : cm.getRight(true));
               break;
             case 'endOfLine':
               cm.setCursor(cm.offsetCursor(cm.getLineEnd(), 1));
