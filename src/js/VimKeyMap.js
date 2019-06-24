@@ -83,7 +83,6 @@ export default class VimKeyMap {
       // special case for 'jk' to leave the insert mode
       if (inputState.lastKey === 'j' && vimKey === 'k') {
         this.processJK(cm);
-        console.log(cm.getHistory());
         this.usedJK = true;
         this.enterNormalMode(cm);
         return;
@@ -149,9 +148,13 @@ export default class VimKeyMap {
 
   processJK = cm => {
     // note that Vim mode is switched to the normal mode before 'k' is typed.
-    const to = cm.getCursor();
-    const from = cm.offsetCursor(to, -1);
-    cm.replaceRange('', from, to);
+    const selections = cm.listSelections();
+    const rangesToReplace = selections.map(({ anchor, head }) => {
+      return { anchor: cm.offsetCursor(anchor, -1), head };
+    });
+    cm.setSelections(rangesToReplace);
+    cm.replaceSelections(Array(selections.length).fill(''));
+    cm.setCursor(rangesToReplace[0].anchor);
     this.usedJK = true;
   };
 
