@@ -121,7 +121,7 @@ const funcs = {
     const newCh =
       newLine > lastLine
         ? this.getLineLengthAt(lastLine) + (beyond ? 0 : -1)
-        : Math.min(ch, this.getLineLengthAt(newLine) - (beyond ? 0 : -1));
+        : Math.min(ch, this.getLineLengthAt(newLine) + (beyond ? 0 : -1));
     return { line: Math.min(lastLine, newLine), ch: newCh };
   },
 
