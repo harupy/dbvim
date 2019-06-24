@@ -408,11 +408,11 @@ export default class VimKeyMap {
     }
 
     if (this.visualMode) {
-      actions[cmd.action](_cm, cmd.actionArgs);
+      action(_cm, cmd.actionArgs);
       return;
     }
 
-    actions[cmd.action](_cm, cmd.actionArgs);
+    action(_cm, cmd.actionArgs);
     if (!this.visualMode) {
       inputState.initAll();
     }
