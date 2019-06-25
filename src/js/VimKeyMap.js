@@ -139,7 +139,8 @@ export default class VimKeyMap {
       this.visualMode = false;
       this.normalMode = true;
     } else {
-      // cm.setSelection(cm.getRight(true), cm.getCursor());
+      // select the the current character
+      cm.setSelection(cm.getCursor(), cm.getRight(true));
       this.visualMode = true;
       this.normalMode = false;
     }
@@ -258,7 +259,9 @@ export default class VimKeyMap {
       },
 
       moveByParagraphs: (cm, motionArgs) => {
-        return motionArgs.forward ? cm.findParagraphBelow() : cm.findParagraphAbove();
+        return motionArgs.forward
+          ? cm.findParagraphBelow(this.visualMode)
+          : cm.findParagraphAbove();
       },
 
       moveByObjects: (cm, motionArgs) => {
@@ -274,8 +277,8 @@ export default class VimKeyMap {
       return;
     }
 
-    const head = _cm.getCursor('head');
-    const anchor = _cm.getCursor('anchor');
+    const oldHead = _cm.getCursor('head');
+    const oldAnchor = _cm.getCursor('anchor');
 
     inputState.setMotion(cmd.motion);
     inputState.setMotionArgs(cmd.motionArgs);
@@ -291,7 +294,8 @@ export default class VimKeyMap {
       if (motionResult.head) {
         _cm.setSelection(motionResult.anchor, motionResult.head);
       } else {
-        _cm.setSelection(anchor, motionResult);
+        const { anchor, head } = cu.adjustSelection(oldAnchor, oldHead, motionResult);
+        _cm.setSelection(anchor, head);
       }
 
       inputState.initAll();
@@ -301,7 +305,7 @@ export default class VimKeyMap {
     // when called after an operator
     if (inputState.operator) {
       const operatorArgs = {
-        range: motionResult.head ? motionResult : { anchor, head: motionResult },
+        range: motionResult.head ? motionResult : { oldAnchor, head: motionResult },
       };
       this.processOperator(_cm, {
         operator: inputState.operator,
@@ -342,8 +346,8 @@ export default class VimKeyMap {
             case 'charAfter':
               cm.setCursor(cm.isLineEnd(true) ? cm.getCursor() : cm.getRight(true));
               break;
-            case 'endOfLine':
-              cm.setCursor(cm.offsetCursor(cm.getLineEnd(), 1));
+            case 'lineEnd':
+              cm.setCursor(cm.getLineEnd(true));
               break;
             case 'firstNonBlank':
               cm.setCursor(cm.findFirstNonBlank());

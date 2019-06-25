@@ -143,10 +143,10 @@ const funcs = {
     return { line, ch: this.getLineLengthAt(line) + (beyond ? 0 : -1) };
   },
 
-  getDocumentEnd: function() {
+  getDocumentEnd: function(beyond = false) {
     const lastLine = this.lastLine();
     const lastLineCh = this.getLastChAt(lastLine);
-    return { line: lastLine, ch: lastLineCh };
+    return { line: lastLine, ch: lastLineCh + (beyond ? 1 : 0) };
   },
 
   getDocumentBegin: function() {
@@ -235,7 +235,7 @@ const funcs = {
     return this.findFirstNonBlankAt(this._getLine());
   },
 
-  findParagraphBelow: function() {
+  findParagraphBelow: function(beyond) {
     const line = this._getLine();
     let l = line;
     while (this.isEmptyLine(l) && l <= this.lastLine()) {
@@ -247,7 +247,7 @@ const funcs = {
     }
 
     if (l > this.lastLine()) {
-      return this.getDocumentEnd();
+      return this.getDocumentEnd(beyond);
     }
     return { line: l, ch: 0 };
   },

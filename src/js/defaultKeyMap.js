@@ -421,7 +421,7 @@ export default [
     type: 'action',
     action: 'enterInsertMode',
     isEdit: true,
-    actionArgs: { insertAt: 'endOfLine' },
+    actionArgs: { insertAt: 'lineEnd' },
     context: 'normal',
   },
   {
