@@ -135,15 +135,15 @@ export default class VimKeyMap {
     if (this.visualMode) {
       // const head = cm.getCursor('head');
       // const anchor = cm.getCursor('anchor');
-      cm.setCursor(cm.getCursor('anchor'));
+      cm.setCursor(cm.getCursor('head'));
       this.visualMode = false;
       this.normalMode = true;
     } else {
       // select the the current character
-      cm.setSelection(cm.getCursor(), cm.getRight(true));
       this.visualMode = true;
       this.normalMode = false;
     }
+    cm.setOption('showCursorWhenSelecting', true);
     this.inputState.initAll();
   };
 
@@ -186,7 +186,9 @@ export default class VimKeyMap {
     }
 
     if (this.visualMode) {
-      const range = _cm.listSelections()[0];
+      // in visual mode, include the character the cursor is on
+      const { anchor, head } = _cm.listSelections()[0];
+      const range = { anchor, head: _cm.offsetCursor(head, 1) };
       register.setText(_cm.getRange(range.anchor, range.head));
       register.setLinewise(false);
       operator(_cm, range);
@@ -226,13 +228,11 @@ export default class VimKeyMap {
   processMotion = (_cm, cmd) => {
     const motions = {
       moveByCharacters: (cm, motionArgs) => {
-        return motionArgs.forward ? cm.getRight(this.visualMode) : cm.getLeft();
+        return motionArgs.forward ? cm.getRight() : cm.getLeft();
       },
 
       moveByLines: (cm, motionArgs) => {
-        return motionArgs.forward
-          ? cm.getLineBelow(this.visualMode)
-          : cm.getLineAbove(this.visualMode);
+        return motionArgs.forward ? cm.getLineBelow() : cm.getLineAbove();
       },
 
       moveByWords: (cm, motionArgs) => {
@@ -251,7 +251,7 @@ export default class VimKeyMap {
       },
 
       moveToLineEnd: cm => {
-        return cm.getLineEnd(this.visualMode);
+        return cm.getLineEnd();
       },
 
       moveToFirstNonBlank: cm => {
@@ -259,9 +259,7 @@ export default class VimKeyMap {
       },
 
       moveByParagraphs: (cm, motionArgs) => {
-        return motionArgs.forward
-          ? cm.findParagraphBelow(this.visualMode)
-          : cm.findParagraphAbove();
+        return motionArgs.forward ? cm.findParagraphBelow() : cm.findParagraphAbove();
       },
 
       moveByObjects: (cm, motionArgs) => {
@@ -292,7 +290,7 @@ export default class VimKeyMap {
 
     if (this.visualMode) {
       if (motionResult.head) {
-        _cm.setSelection(motionResult.anchor, motionResult.head);
+        _cm.setSelection(motionResult.anchor, _cm.offsetCursor(motionResult.head, -1));
       } else {
         const { anchor, head } = cu.adjustSelection(oldAnchor, oldHead, motionResult);
         _cm.setSelection(anchor, head);
@@ -372,6 +370,10 @@ export default class VimKeyMap {
         } else {
           if (!cm.somethingSelected()) {
             cm.setCursor(cm.getCursorOffset(1));
+          } else {
+            const { anchor, head } = _cm.listSelections()[0];
+            const range = { anchor, head: _cm.offsetCursor(head, 1) };
+            cm.setSelection(range.anchor, range.head);
           }
           cm.replaceSelection(this.register.text);
         }
