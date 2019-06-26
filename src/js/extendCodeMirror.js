@@ -26,6 +26,12 @@ const getEndPositions = function(line, regex) {
   return positions;
 };
 
+const escapeRegExp = string => {
+  const reRegExpChar = /[\\^$.*+?()[\]{}|]/g;
+  const reHasRegExpChar = RegExp(reRegExpChar.source);
+  return string && reHasRegExpChar.test(string) ? string.replace(reRegExpChar, '\\$&') : string;
+};
+
 const funcs = {
   getCursorOffset: function(chs = 0, lines = 0) {
     return cu.offsetCursor(this.getCursor(), chs, lines);
@@ -376,6 +382,15 @@ const funcs = {
     }
 
     return this.getDocumentBegin();
+  },
+
+  findCharacter: function(motionArgs) {
+    const { line, ch } = this.getCursor();
+    const { forward, charToMatch } = motionArgs;
+    const regex = RegExp(escapeRegExp(charToMatch), 'ug');
+    const positions = getBeginPositions(this.getLineAt(line), regex);
+    const newCh = positions.filter(p => (forward ? ch < p : ch > p)).slice(forward ? 0 : -1)[0];
+    return newCh ? { line, ch: newCh } : null;
   },
 
   findWord: function(inner = true) {

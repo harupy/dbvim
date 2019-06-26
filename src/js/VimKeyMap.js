@@ -244,6 +244,10 @@ export default class VimKeyMap {
           : cm.findWordBeginLeft();
       },
 
+      moveToCharacter: (cm, motionArgs) => {
+        return cm.findCharacter(motionArgs);
+      },
+
       moveToLineBegin: cm => {
         return cm.getLineBegin();
       },
@@ -458,6 +462,7 @@ export default class VimKeyMap {
     }
 
     commands.forEach(command => {
+      console.log(command);
       switch (command.type) {
         case 'motion':
           this.processMotion(cm, command);
