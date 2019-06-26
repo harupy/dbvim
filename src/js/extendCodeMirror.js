@@ -1,4 +1,4 @@
-import * as cu from './cursorUtils';
+import * as cu from './utils/cursor';
 
 const clip = function(x, lower, upper) {
   return Math.min(upper, Math.max(lower, x));

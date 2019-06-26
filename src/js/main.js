@@ -1,5 +1,5 @@
 import VimKeyMap from './VimKeyMap';
-import * as cu from './cursorUtils';
+import * as cu from './utils/cursor';
 import extendCodeMirror from './extendCodeMirror';
 
 (() => {

@@ -1,48 +1,9 @@
 import InputState from './InputState';
 import Register from './Register';
 import keyMap from './defaultKeyMap';
-import * as cu from './cursorUtils';
+import * as cu from './utils/cursor';
+import * as ku from './utils/key';
 import commandSearch from './commandSearch';
-
-const toVimKey = key => {
-  if (key.charAt(0) === "'") {
-    return key.slice(1, -1);
-  }
-
-  const isChar = key => {
-    return key.length === 1;
-  };
-
-  const isAlphabet = key => {
-    return /[a-zA-Z]/.test(key);
-  };
-
-  if (isChar(key)) {
-    if (isAlphabet) {
-      return key.toLowerCase();
-    } else {
-      return key;
-    }
-  }
-
-  // process a key combination (e.g. shift-m, ctrl-e)
-  const pieces = key.split('-');
-
-  if (pieces.length == 2) {
-    const [modKey, normKey] = pieces;
-
-    if (modKey === normKey) {
-      return modKey;
-    }
-
-    // process shift - <alphabet> combination
-    if (modKey.toLowerCase() === 'shift') {
-      if (isChar(normKey) && isAlphabet(normKey)) {
-        return normKey.toUpperCase();
-      }
-    }
-  }
-};
 
 export default class VimKeyMap {
   constructor() {
@@ -72,7 +33,7 @@ export default class VimKeyMap {
       return key;
     }
 
-    const vimKey = toVimKey(key);
+    const vimKey = ku.toVimKey(key);
     const { inputState } = this;
 
     if (!cm) {
@@ -450,8 +411,7 @@ export default class VimKeyMap {
     const commands = [];
     if (match.command.toKeys) {
       const { toKeys } = match.command;
-      const isMultiple = !toKeys.startsWith('<') && toKeys.length > 1;
-      (isMultiple ? toKeys.split('') : [toKeys]).forEach(k => {
+      ku.splitKeys(toKeys).forEach(k => {
         const m = commandSearch(k, keyMap, context, this.inputState);
         if (m && m.command) {
           commands.push(m.command);
