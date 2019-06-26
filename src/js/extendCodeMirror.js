@@ -153,6 +153,11 @@ const funcs = {
     return { line: 0, ch: 0 };
   },
 
+  getSelectionVisual: function() {
+    const { anchor, head } = this.listSelections()[0];
+    return { anchor, head: this.offsetCursor(head, 1) };
+  },
+
   getIndentAt: function(line) {
     return this.getLineAt(line).match(/^\s*/)[0];
   },

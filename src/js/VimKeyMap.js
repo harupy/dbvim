@@ -186,9 +186,8 @@ export default class VimKeyMap {
     }
 
     if (this.visualMode) {
-      // in visual mode, include the character the cursor is on
-      const { anchor, head } = _cm.listSelections()[0];
-      const range = { anchor, head: _cm.offsetCursor(head, 1) };
+      // in visual mode, include the character the cursor is on in the selected range
+      const range = _cm.getSelectionVisual();
       register.setText(_cm.getRange(range.anchor, range.head));
       register.setLinewise(false);
       operator(_cm, range);
@@ -368,12 +367,12 @@ export default class VimKeyMap {
           cm.replaceSelection(this.register.text);
           cm.setCursor(cm.findFirstNonBlank());
         } else {
-          if (!cm.somethingSelected()) {
-            cm.setCursor(cm.getCursorOffset(1));
-          } else {
-            const { anchor, head } = _cm.listSelections()[0];
-            const range = { anchor, head: _cm.offsetCursor(head, 1) };
+          if (this.visualMode) {
+            // in visual mode, include the character the cursor is on in the selected range
+            const range = cm.getSelectionVisual();
             cm.setSelection(range.anchor, range.head);
+          } else {
+            cm.setCursor(cm.getCursorOffset(1));
           }
           cm.replaceSelection(this.register.text);
         }
