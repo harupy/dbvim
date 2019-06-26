@@ -8,19 +8,19 @@ const clipLine = function(line) {
   return clip(line, this.firstLine(), this.lastLine());
 };
 
-const getBeginPositions = function(line, regex) {
+const getBeginPositions = function(line, regexp) {
   const positions = [];
   let match;
-  while ((match = regex.exec(line))) {
+  while ((match = regexp.exec(line))) {
     positions.push(match.index);
   }
   return positions;
 };
 
-const getEndPositions = function(line, regex) {
+const getEndPositions = function(line, regexp) {
   const positions = [];
   let match;
-  while ((match = regex.exec(line))) {
+  while ((match = regexp.exec(line))) {
     positions.push(match.index + match[0].length - 1);
   }
   return positions;
