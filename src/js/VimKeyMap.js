@@ -302,7 +302,7 @@ export default class VimKeyMap {
     // when called after an operator
     if (inputState.operator) {
       const operatorArgs = {
-        range: motionResult.head ? motionResult : { oldAnchor, head: motionResult },
+        range: motionResult.head ? motionResult : { anchor: oldAnchor, head: motionResult },
       };
       this.processOperator(_cm, {
         operator: inputState.operator,
