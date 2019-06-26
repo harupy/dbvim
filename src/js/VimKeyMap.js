@@ -399,7 +399,7 @@ export default class VimKeyMap {
           this.inputState.appendKeyBuffer(key);
           this.inputState.appendKeySeq(key);
           const keys = this.inputState.joinKeyBuffer();
-          this.processNonInsert(cm, keys, 'normal');
+          this.processKeyNonInsert(cm, keys, 'normal');
         });
       },
     };
@@ -423,7 +423,7 @@ export default class VimKeyMap {
     }
   };
 
-  processNonInsert = (cm, key, context) => {
+  processKeyNonInsert = (cm, key, context) => {
     const match = commandSearch(key, keyMap, context, this.inputState);
     console.log(match.type);
     switch (match.type) {
