@@ -61,7 +61,7 @@ const findCommandMatches = (keys, context, inputState) => {
 };
 
 export default (keys, context, inputState) => {
-  const matches = findCommandMatches(keys, keyMap, context, inputState);
+  const matches = findCommandMatches(keys, context, inputState);
   if (!matches.full && !matches.partial) {
     return { type: 'none' };
   } else if (!matches.full && matches.partial) {
