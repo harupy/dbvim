@@ -39,6 +39,10 @@ export const isOneCharBefore = (cursorTarget, cursorRef) => {
   return cursorRef.line === cursorTarget.line && cursorRef.ch - cursorTarget.ch === 1;
 };
 
+export const sortCursors = (cur1, cur2) => {
+  return isBefore(cur1, cur2) ? [cur1, cur2] : [cur2, cur1];
+};
+
 export const headPassedAnchor = (anchor, oldHead, newHead, forward) => {
   return forward
     ? isBefore(oldHead, anchor) && isBefore(anchor, newHead)

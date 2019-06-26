@@ -188,10 +188,11 @@ export default class VimKeyMap {
     if (this.visualMode) {
       // in visual mode, include the character the cursor is on in the selected range
       const range = _cm.getSelectionVisual();
-      register.setText(_cm.getRange(range.anchor, range.head));
+      const [from, to] = cu.sortCursors(range.anchor, range.head);
+      register.setText(_cm.getRange(from, to)); // 'from' must be before 'to'
       register.setLinewise(false);
       operator(_cm, range);
-      _cm.setCursor(range.anchor);
+      _cm.setCursor(from);
       this.toggleVisualMode(_cm);
       return;
     }
