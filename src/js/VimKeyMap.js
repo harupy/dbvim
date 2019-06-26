@@ -105,7 +105,7 @@ export default class VimKeyMap {
       console.log('Key sequence: ', this.inputState.keySeq);
       console.log('Last edit key sequence', this.inputState.lastEditKeySeq);
       cu.enableFatCursor();
-      return this.processKeyNormal(cm, keys, this.getMode());
+      return this.processKeyNonInsert(cm, keys, this.getMode());
     }
   };
 
@@ -399,7 +399,7 @@ export default class VimKeyMap {
           this.inputState.appendKeyBuffer(key);
           this.inputState.appendKeySeq(key);
           const keys = this.inputState.joinKeyBuffer();
-          this.processKeyNormal(cm, keys, 'normal');
+          this.processNonInsert(cm, keys, 'normal');
         });
       },
     };
@@ -423,7 +423,7 @@ export default class VimKeyMap {
     }
   };
 
-  processKeyNormal = (cm, key, context) => {
+  processNonInsert = (cm, key, context) => {
     const match = commandSearch(key, keyMap, context, this.inputState);
     console.log(match.type);
     switch (match.type) {
