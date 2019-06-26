@@ -30,10 +30,6 @@ const findMatchType = (keys, cmdKeys) => {
 };
 
 const findCommandMatches = (keys, keyMap, context, inputState) => {
-  /*
-   * Let's say 'i' is typed after 'd' which is an operator.
-   * In this case, 'i' is ignored because it's an action and 'i<character>' is returned as a partial match
-   */
   const keysMapped = keys in customKeyMap ? customKeyMap[keys] : keys;
 
   // Some key have multiple command types

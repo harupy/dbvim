@@ -434,38 +434,54 @@ export default class VimKeyMap {
       case 'full':
         break;
       default:
-        break;
+        return;
     }
 
-    if (match.command) {
-      console.log(match.command);
-      switch (match.command.type) {
+    if (!match.command) {
+      this.inputState.initAll();
+      return;
+    }
+
+    const commands = [];
+    if (match.command.toKeys) {
+      const { toKeys } = match.command;
+      const isMultiple = !toKeys.startsWith('<') && toKeys.length > 1;
+      (isMultiple ? toKeys.split('') : [toKeys]).forEach(k => {
+        const m = commandSearch(k, keyMap, context, this.inputState);
+        if (m && m.command) {
+          commands.push(m.command);
+        }
+      });
+    } else {
+      commands.push(match.command);
+    }
+
+    commands.forEach(command => {
+      switch (command.type) {
         case 'motion':
-          this.processMotion(cm, match.command);
+          this.processMotion(cm, command);
           break;
         case 'action': {
-          this.processAction(cm, match.command);
+          this.processAction(cm, command);
           break;
         }
         case 'operator': {
-          this.processOperator(cm, match.command);
+          this.processOperator(cm, command);
           break;
         }
         case 'operatorMotion': {
           if (this.visualMode) {
-            this.processOperator(cm, match.command);
+            this.processOperator(cm, command);
           } else {
-            this.processOperator(cm, match.command);
-            this.processMotion(cm, match.command);
+            this.processOperator(cm, command);
+            this.processMotion(cm, command);
           }
           break;
         }
         default:
           break;
       }
-      return () => {};
-    } else {
-      this.inputState.initAll();
-    }
+    });
+    return () => {};
   };
 }
