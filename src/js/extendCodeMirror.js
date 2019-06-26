@@ -387,8 +387,8 @@ const funcs = {
   findCharacter: function(motionArgs) {
     const { line, ch } = this.getCursor();
     const { forward, charToMatch } = motionArgs;
-    const regex = RegExp(escapeRegExp(charToMatch), 'ug');
-    const positions = getBeginPositions(this.getLineAt(line), regex);
+    const regexp = RegExp(escapeRegExp(charToMatch), 'ug');
+    const positions = getBeginPositions(this.getLineAt(line), regexp);
     const newCh = positions.filter(p => (forward ? ch < p : ch > p)).slice(forward ? 0 : -1)[0];
     return newCh ? { line, ch: newCh } : null;
   },
