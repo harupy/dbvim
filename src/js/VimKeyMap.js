@@ -133,8 +133,6 @@ export default class VimKeyMap {
   toggleVisualMode = cm => {
     this.insertmode = false;
     if (this.visualMode) {
-      // const head = cm.getCursor('head');
-      // const anchor = cm.getCursor('anchor');
       cm.setCursor(cm.getCursor('head'));
       this.visualMode = false;
       this.normalMode = true;
