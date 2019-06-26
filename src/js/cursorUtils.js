@@ -21,6 +21,10 @@ export const disableFatCursor = () => {
   window.setTimeout(callback, 0);
 };
 
+export const offsetCursor = (cur, chs = 0, lines = 0) => {
+  return { ch: cur.ch + chs, line: cur.line + lines };
+};
+
 export const isBefore = (cursorTarget, cursorRef) => {
   if (cursorTarget.line < cursorRef.line) {
     return true;

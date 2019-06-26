@@ -151,7 +151,7 @@ export default class VimKeyMap {
     // note that Vim mode is switched to the normal mode before 'k' is typed.
     const selections = cm.listSelections();
     const rangesToReplace = selections.map(({ anchor, head }) => {
-      return { anchor: cm.offsetCursor(anchor, -1), head };
+      return { anchor: cu.offsetCursor(anchor, -1), head };
     });
     cm.setSelections(rangesToReplace);
     cm.replaceSelections(Array(selections.length).fill(''));
@@ -289,7 +289,7 @@ export default class VimKeyMap {
 
     if (this.visualMode) {
       if (motionResult.head) {
-        _cm.setSelection(motionResult.anchor, _cm.offsetCursor(motionResult.head, -1));
+        _cm.setSelection(motionResult.anchor, cu.offsetCursor(motionResult.head, -1));
       } else {
         const { anchor, head } = cu.adjustSelection(oldAnchor, oldHead, motionResult);
         _cm.setSelection(anchor, head);

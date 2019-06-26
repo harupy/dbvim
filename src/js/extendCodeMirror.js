@@ -1,3 +1,5 @@
+import * as cu from './cursorUtils';
+
 const clip = function(x, lower, upper) {
   return Math.min(upper, Math.max(lower, x));
 };
@@ -25,12 +27,8 @@ const getEndPositions = function(line, regex) {
 };
 
 const funcs = {
-  offsetCursor: function(cur, chs = 0, lines = 0) {
-    return { ch: cur.ch + chs, line: cur.line + lines };
-  },
-
   getCursorOffset: function(chs = 0, lines = 0) {
-    return this.offsetCursor(this.getCursor(), chs, lines);
+    return cu.offsetCursor(this.getCursor(), chs, lines);
   },
 
   getCursorChar: function() {
@@ -155,7 +153,8 @@ const funcs = {
 
   getSelectionVisual: function() {
     const { anchor, head } = this.listSelections()[0];
-    return { anchor, head: this.offsetCursor(head, 1) };
+    const headChOffset = cu.isBefore(head, anchor) ? 0 : 1;
+    return { anchor, head: cu.offsetCursor(head, headChOffset) };
   },
 
   getIndentAt: function(line) {
@@ -380,7 +379,7 @@ const funcs = {
     if (inner) {
       start = this.findWordBeginLeft(inner);
       end = this.findWordEndRight(inner);
-      return { anchor: start, head: this.offsetCursor(end, 1) };
+      return { anchor: start, head: cu.offsetCursor(end, 1) };
     } else {
       const cur = this.getCursor();
       end = this.findWordBeginRight();
@@ -388,7 +387,7 @@ const funcs = {
 
       start = containsSpace ? this.findWordBeginLeft(inner) : this.findWordEndLeft();
       const offset = containsSpace ? 0 : 1;
-      return { anchor: this.offsetCursor(start, offset), head: end };
+      return { anchor: cu.offsetCursor(start, offset), head: end };
     }
   },
 
