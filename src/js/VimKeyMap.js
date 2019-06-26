@@ -326,13 +326,14 @@ export default class VimKeyMap {
           cm.setCursor(cm.firstLine(), 0);
         } else {
           const indent = cm.getIndent();
+          const codeBockIndent = cm.getLastChar() === ':' ? '  ' : '';
           const newLine = actionArgs.after ? cur.line : cur.line - 1;
           const newCur = {
             line: newLine,
             ch: cm.getLineLengthAt(newLine),
           };
           cm.setCursor(newCur);
-          cm.replaceSelection('\n' + indent);
+          cm.replaceSelection('\n' + indent + codeBockIndent);
         }
         this.enterInsertMode(cm);
       },

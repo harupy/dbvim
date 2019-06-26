@@ -50,6 +50,10 @@ const funcs = {
     return this.getLine(line);
   },
 
+  getLastChar: function() {
+    return this.getLineAt(this._getLine()).slice(-1)[0];
+  },
+
   getLineLength: function() {
     return this.getLineAt(this._getLine()).length;
   },
