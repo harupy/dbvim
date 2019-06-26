@@ -1,6 +1,5 @@
 import InputState from './InputState';
 import Register from './Register';
-import keyMap from './defaultKeyMap';
 import * as cu from './utils/cursor';
 import * as ku from './utils/key';
 import commandSearch from './commandSearch';
@@ -389,7 +388,7 @@ export default class VimKeyMap {
   };
 
   processKeyNonInsert = (cm, key, context) => {
-    const match = commandSearch(key, keyMap, context, this.inputState);
+    const match = commandSearch(key, context, this.inputState);
     console.log(match.type);
     switch (match.type) {
       case 'none':
@@ -412,7 +411,7 @@ export default class VimKeyMap {
     if (match.command.toKeys) {
       const { toKeys } = match.command;
       ku.splitKeys(toKeys).forEach(k => {
-        const m = commandSearch(k, keyMap, context, this.inputState);
+        const m = commandSearch(k, context, this.inputState);
         if (m && m.command) {
           commands.push(m.command);
         }

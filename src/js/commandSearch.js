@@ -1,4 +1,5 @@
-import customKeyMap from './customKeyMap';
+import keyMap from './keymap/defaultKeyMap';
+import customKeyMap from './keymap/customKeyMap';
 
 const findMatchType = (keys, cmdKeys) => {
   if (cmdKeys.slice(-11) === '<character>') {
@@ -29,7 +30,7 @@ const findMatchType = (keys, cmdKeys) => {
   }
 };
 
-const findCommandMatches = (keys, keyMap, context, inputState) => {
+const findCommandMatches = (keys, context, inputState) => {
   const keysMapped = keys in customKeyMap ? customKeyMap[keys] : keys;
 
   // Some key have multiple command types
@@ -59,7 +60,7 @@ const findCommandMatches = (keys, keyMap, context, inputState) => {
   };
 };
 
-export default (keys, keyMap, context, inputState) => {
+export default (keys, context, inputState) => {
   const matches = findCommandMatches(keys, keyMap, context, inputState);
   if (!matches.full && !matches.partial) {
     return { type: 'none' };
