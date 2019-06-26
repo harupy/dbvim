@@ -13,8 +13,11 @@ import extendCodeMirror from './extendCodeMirror';
     // find the cell being edited
     const cellEditing = document.querySelector('div.is-editing div.CodeMirror');
 
-    if (cellEditing && !cellEditing.CodeMirror.state.vimized) {
-      const cm = cellEditing.CodeMirror;
+    if (!cellEditing || !cellEditing.CodeMirror) return;
+
+    const cm = cellEditing.CodeMirror;
+
+    if (!cm.state.vimized) {
       cm.state.vimized = true;
       const vimKeyMap = new VimKeyMap();
 
@@ -30,6 +33,11 @@ import extendCodeMirror from './extendCodeMirror';
       // add the vim keymap
       cm.addKeyMap(vimKeyMap);
       enterVimMode(cm);
+    } else if (!cm.state.keyMaps[0].insertMode) {
+      if (cm.isLineEnd(true)) {
+        cm.setCursor(cm.getLineEnd());
+        cu.enableFatCursor();
+      }
     }
   };
 
