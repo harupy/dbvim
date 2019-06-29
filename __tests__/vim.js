@@ -294,4 +294,53 @@ describe('test', () => {
       expect(await getValue()).toEqual('');
     }
   });
+
+  it('change inner word', async () => {
+    await setValue('foo');
+    await page.keyboard.type('ciwa');
+    expect(await getValue()).toEqual('a');
+    await leaveInsertMode();
+
+    const chars = ['(', ')', '{', '}', '[', ']', "'", '"'];
+    for (const char of chars) {
+      const pair = [char, mirrors[char]].sort();
+      await setValue(pair.join('foo'));
+      await page.keyboard.type(`ci${char}`);
+      expect(await getCursor()).cursorAt(0, 1);
+      await page.keyboard.type('a');
+      expect(await getValue()).toEqual(`${pair.join('a')}`);
+      await leaveInsertMode();
+    }
+  });
+
+  it('change a word', async () => {
+    await setValue('foo');
+    await page.keyboard.type('cawa');
+    expect(await getValue()).toEqual('a');
+    await leaveInsertMode();
+
+    const chars = ['(', ')', '{', '}', '[', ']', "'", '"'];
+    for (const char of chars) {
+      const pair = [char, mirrors[char]].sort();
+      await setValue(pair.join('foo'));
+      await page.keyboard.type(`ca${char}a`);
+      expect(await getValue()).toEqual('a');
+      await leaveInsertMode();
+    }
+  });
+
+  it('linewise delete', async () => {
+    await setValue('foo');
+    await page.keyboard.type('dd');
+    expect(await getValue()).toEqual('');
+  });
+
+  it('linewise yank and paste', async () => {
+    await setValue('foo');
+    await page.keyboard.type('yy');
+    expect(await getValue()).toEqual('foo');
+    expect(await getCursor()).cursorAt(0, 0);
+    await page.keyboard.type('p');
+    expect(await getValue()).toEqual('foo\nfoo');
+  });
 });
