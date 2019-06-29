@@ -280,7 +280,7 @@ const funcs = {
     return { line: l, ch: 0 };
   },
 
-  findWordBeginRight: function(inclusive = false) {
+  findWordBeginRight: function(inclusive = false, throughLines = true) {
     const { line, ch } = this.getCursor();
 
     const wordSeparator = '\\\\()"\':,.;<>~!@#$%^&*|+=[\\]{}`?-';
@@ -297,6 +297,10 @@ const funcs = {
 
       if (wordBegin !== undefined) {
         return { line: l, ch: wordBegin };
+      }
+
+      if (!throughLines) {
+        return { line: l, ch: lineStr.length };
       }
 
       l++;
@@ -396,16 +400,15 @@ const funcs = {
   findWord: function(inner = true) {
     let start, end;
     if (inner) {
-      start = this.findWordBeginLeft(inner);
-      end = this.findWordEndRight(inner);
+      start = this.findWordBeginLeft(true);
+      end = this.findWordEndRight(true);
       return { anchor: start, head: cu.offsetCursor(end, 1) };
     } else {
       const cur = this.getCursor();
-      end = this.findWordBeginRight();
+      end = this.findWordBeginRight(false, false);
       const containsSpace = this.getRange(cur, end).indexOf(' ') > -1;
-
-      start = containsSpace ? this.findWordBeginLeft(inner) : this.findWordEndLeft();
-      const offset = containsSpace ? 0 : 1;
+      start = containsSpace ? this.findWordBeginLeft(true) : this.findWordEndLeft();
+      const offset = containsSpace ? 0 : start.ch === 0 ? 0 : 1;
       return { anchor: cu.offsetCursor(start, offset), head: end };
     }
   },
