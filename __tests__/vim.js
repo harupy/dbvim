@@ -1,7 +1,9 @@
-import dotenv from 'dotenv';
-dotenv.config();
-
 import puppeteer from 'puppeteer';
+import dotenv from 'dotenv';
+
+dotenv.config();
+jest.setTimeout(100000);
+
 const { EMAIL, PASSWORD, CRX_PATH, TEST_NOTEBOOK_URL } = process.env;
 const TEST_CODE = `
 def func1():
@@ -27,16 +29,8 @@ const mirrors = {
   '"': '"',
 };
 
-jest.setTimeout(100000);
-
 let page;
 let browser;
-
-const delay = time => {
-  return new Promise(function(resolve) {
-    setTimeout(resolve, time);
-  });
-};
 
 const initCellContent = async () => {
   await page.evaluate(() => {
@@ -110,7 +104,6 @@ beforeAll(async () => {
   await page.waitForSelector('div.CodeMirror');
   await page.focus('div.CodeMirror');
   await page.keyboard.press('Enter');
-  delay(1000);
 });
 
 beforeEach(async () => {
