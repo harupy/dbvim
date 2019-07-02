@@ -77,11 +77,11 @@ const getDocumentEnd = async () => {
 };
 
 const enterInsertMode = async () => {
-  await page.keyboard.type('i');
+  await page.keyboard.press('i');
 };
 
 const leaveInsertMode = async () => {
-  await page.keyboard.type('jk');
+  await page.keyboard.press('Escape');
 };
 
 beforeAll(async () => {
@@ -149,7 +149,13 @@ describe('test', () => {
     expect(await getCursor()).cursorAt(0, 3);
   });
 
+  it('leave insert mode by Escape', async () => {
+    await page.keyboard.press('Escape');
+    expect(await getValue()).toEqual('');
+  });
+
   it('leave insert mode by jk', async () => {
+    await page.keyboard.press('i');
     await page.keyboard.type('jk');
     expect(await getValue()).toEqual('');
   });

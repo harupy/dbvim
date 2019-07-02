@@ -26,6 +26,11 @@ export default class VimKeyMap {
     if (this.normalMode) {
       cu.enableFatCursor();
     }
+
+    if (key === 'Esc' && this.insertMode) {
+      this.enterNormalMode(cm);
+      return () => {};
+    }
     // for a single character, another key event is dispatched with "'<char>'"
     // this line is for ignoring the first event.
     if (key.charAt(0) !== "'") {
