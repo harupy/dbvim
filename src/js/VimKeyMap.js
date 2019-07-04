@@ -177,12 +177,15 @@ export default class VimKeyMap {
 
     // handle repeated keys such as 'dd'
     if (inputState.operator) {
+      const isSingleLine = _cm.lastLine() === 0;
+      const isFirstLine = _cm.getCursor().line === 0;
       const range = _cm.expandToLine(oldHead, inputState.repeat);
-      const text = _cm.getRange(range.anchor, range.head);
+
+      const textRaw = _cm.getRange(range.anchor, range.head);
+      const text = isSingleLine || !isFirstLine ? textRaw : '\n' + textRaw.replace(/\s$/, '');
       register.setText(text);
       register.setLinewise(true);
       operator(_cm, range);
-      const isFirstLine = range.anchor.ch === 0 && range.anchor.line === 0;
       const line = isFirstLine ? 0 : Math.min(_cm.lastLine(), range.anchor.line + 1);
       const ch = _cm.findFirstNonBlank(line).ch;
       _cm.setCursor({ line, ch });
