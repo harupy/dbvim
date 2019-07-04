@@ -6,6 +6,10 @@ export const isAlphabet = key => {
   return /[a-zA-Z]/.test(key);
 };
 
+export const isNumeric = key => {
+  return /[0-9]/.test(key);
+};
+
 export const toVimKey = key => {
   if (key.charAt(0) === "'") {
     return key.slice(1, -1);

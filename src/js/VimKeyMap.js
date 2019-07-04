@@ -50,7 +50,7 @@ export default class VimKeyMap {
         this.processJK(cm);
         this.usedJK = true;
         this.enterNormalMode(cm);
-        return;
+        return () => {};
       }
       inputState.setLastKey(vimKey);
       return vimKey;
@@ -89,7 +89,7 @@ export default class VimKeyMap {
     this.normalMode = true;
     this.visualMode = false;
     this.inputState.initAll();
-    cm.setCursor(cm.getLeft(false));
+    cm.setCursor(cm.getLeft(cm.getCursor(), false));
     cm.setOption('disableInput', true);
     cm.setOption('showCursorWhenSelecting', false);
     cu.enableFatCursor();
@@ -140,6 +140,9 @@ export default class VimKeyMap {
       },
     };
 
+    const oldHead = _cm.getCursor('head');
+    const oldAnchor = _cm.getCursor('anchor');
+
     const { inputState, register } = this;
     const operator = operators[cmd.operator];
 
@@ -150,7 +153,8 @@ export default class VimKeyMap {
 
     if (this.visualMode) {
       // in visual mode, include the character the cursor is on in the selected range
-      const range = _cm.getSelectionVisual();
+      const sel = _cm.listSelections()[0];
+      const range = _cm.getSelectionVisual(sel);
       const [from, to] = cu.sortCursors(range.anchor, range.head);
       register.setText(_cm.getRange(from, to)); // 'from' must be before 'to'
       register.setLinewise(false);
@@ -171,13 +175,17 @@ export default class VimKeyMap {
       return;
     }
 
-    // when repeated keys such as 'dd' are typed
+    // handle repeated keys such as 'dd'
     if (inputState.operator) {
-      const range = _cm.expandToLine();
+      const range = _cm.expandToLine(oldHead, inputState.repeat);
       const text = _cm.getRange(range.anchor, range.head);
-      register.setText('\n' + text.replace(/^\n+|\n+$/g, ''));
+      register.setText(text);
       register.setLinewise(true);
       operator(_cm, range);
+      const isFirstLine = range.anchor.ch === 0 && range.anchor.line === 0;
+      const line = isFirstLine ? 0 : Math.min(_cm.lastLine(), range.anchor.line + 1);
+      const ch = _cm.findFirstNonBlank(line).ch;
+      _cm.setCursor({ line, ch });
       inputState.updateLastEditKeySeq();
       inputState.initAll();
       return;
@@ -190,47 +198,49 @@ export default class VimKeyMap {
 
   processMotion = (_cm, cmd) => {
     const motions = {
-      moveByCharacters: (cm, motionArgs) => {
-        return motionArgs.forward ? cm.getRight() : cm.getLeft();
+      moveByCharacters: (cm, cur, motionArgs) => {
+        return motionArgs.forward ? cm.getRight(cur) : cm.getLeft(cur);
       },
 
-      moveByLines: (cm, motionArgs) => {
-        return motionArgs.forward ? cm.getLineBelow() : cm.getLineAbove();
+      moveByLines: (cm, cur, motionArgs) => {
+        return motionArgs.forward ? cm.getLineBelow(cur) : cm.getLineAbove(cur);
       },
 
-      moveByWords: (cm, motionArgs) => {
+      moveByWords: (cm, cur, motionArgs) => {
         const { forward, wordEnd } = motionArgs;
         return forward
           ? wordEnd
-            ? cm.findWordEndRight()
-            : cm.findWordBeginRight()
+            ? cm.findWordEndRight(cur)
+            : cm.findWordBeginRight(cur)
           : wordEnd
-          ? cm.findWordEndLeft()
-          : cm.findWordBeginLeft();
+          ? cm.findWordEndLeft(cur)
+          : cm.findWordBeginLeft(cur);
       },
 
-      moveToCharacter: (cm, motionArgs) => {
-        return cm.findCharacter(motionArgs);
+      moveToCharacter: (cm, cur, motionArgs) => {
+        const { forward, charToMatch } = motionArgs;
+        return cm.findCharacter(cur, forward, charToMatch);
       },
 
-      moveToLineBegin: cm => {
-        return cm.getLineBegin();
+      moveToLineBegin: (cm, cur) => {
+        return cm.getLineBegin(cur.line);
       },
 
-      moveToLineEnd: cm => {
-        return cm.getLineEnd();
+      moveToLineEnd: (cm, cur) => {
+        return cm.getLineEnd(cur.line);
       },
 
-      moveToFirstNonBlank: cm => {
-        return cm.findFirstNonBlank();
+      moveToFirstNonBlank: (cm, cur) => {
+        return cm.findFirstNonBlank(cur.line);
       },
 
-      moveByParagraphs: (cm, motionArgs) => {
-        return motionArgs.forward ? cm.findParagraphBelow() : cm.findParagraphAbove();
+      moveByParagraphs: (cm, cur, motionArgs) => {
+        return motionArgs.forward ? cm.findParagraphBelow(cur) : cm.findParagraphAbove(cur);
       },
 
-      moveByObjects: (cm, motionArgs) => {
-        return cm.findSurrounding(motionArgs);
+      moveByObjects: (cm, cur, motionArgs) => {
+        const { inner, charToMatch } = motionArgs;
+        return cm.findSurrounding(cur, inner, charToMatch);
       },
     };
 
@@ -248,7 +258,19 @@ export default class VimKeyMap {
     inputState.setMotion(cmd.motion);
     inputState.setMotionArgs(cmd.motionArgs);
 
-    const motionResult = motion(_cm, cmd.motionArgs);
+    // const funcs = [...Array(inputState.repeat).fill(motion)];
+    const motionResults = [];
+    let cur = oldHead;
+
+    [...Array(inputState.repeat)].forEach(() => {
+      const next = motion(_cm, cur, cmd.motionArgs);
+      motionResults.push(next);
+      cur = next.head ? next.head : next;
+    });
+
+    const motionResult = motionResults[0].head
+      ? { anchor: motionResults[0].anchor, head: motionResults.slice(-1)[0].head }
+      : motionResults.slice(-1)[0];
 
     if (!motionResult) {
       inputState.initAll();
@@ -259,7 +281,7 @@ export default class VimKeyMap {
       if (motionResult.head) {
         _cm.setSelection(motionResult.anchor, cu.offsetCursor(motionResult.head, -1));
       } else {
-        const { anchor, head } = cu.adjustSelection(oldAnchor, oldHead, motionResult);
+        const { anchor, head } = cu.expandSelection(oldAnchor, oldHead, motionResult);
         _cm.setSelection(anchor, head);
       }
 
@@ -289,17 +311,18 @@ export default class VimKeyMap {
     }
     const actions = {
       newLineAndEnterInsertMode: (cm, actionArgs) => {
-        const cur = cm.getCursor();
-        if (cm.isFirstLine() && !actionArgs.after) {
+        const { line } = cm.getCursor();
+        if (cm.isFirstLine(line) && !actionArgs.after) {
           cm.replaceRange('\n', { line: cm.firstLine(), ch: 0 });
           cm.setCursor(cm.firstLine(), 0);
         } else {
-          const indent = cm.getIndent();
-          const codeBockIndent = cm.getLastChar() === ':' ? '  ' : '';
-          const newLine = actionArgs.after ? cur.line : cur.line - 1;
+          const indent = cm.getIndent(line);
+          const lastCh = cm.getLastCh(line);
+          const codeBockIndent = cm.getLine(line).charAt(lastCh) === ':' ? '  ' : '';
+          const newLine = actionArgs.after ? line : line - 1;
           const newCur = {
             line: newLine,
-            ch: cm.getLineLengthAt(newLine),
+            ch: cm.getLineLength(newLine),
           };
           cm.setCursor(newCur);
           cm.replaceSelection('\n' + indent + codeBockIndent);
@@ -308,15 +331,17 @@ export default class VimKeyMap {
       },
       enterInsertMode: (cm, actionArgs) => {
         if (actionArgs) {
+          const cur = cm.getCursor();
+
           switch (actionArgs.insertAt) {
             case 'charAfter':
-              cm.setCursor(cm.isLineEnd(true) ? cm.getCursor() : cm.getRight(true));
+              cm.setCursor(cm.getRight(cur, true));
               break;
             case 'lineEnd':
-              cm.setCursor(cm.getLineEnd(true));
+              cm.setCursor(cm.getLineEnd(cur.line, true));
               break;
             case 'firstNonBlank':
-              cm.setCursor(cm.findFirstNonBlank());
+              cm.setCursor(cm.findFirstNonBlank(cur.line));
               break;
             default:
               break;
@@ -330,18 +355,20 @@ export default class VimKeyMap {
       },
 
       paste: cm => {
+        const { line } = cm.getCursor();
         if (this.register.linewise) {
-          const lineEnd = cm.getLineEnd(true);
+          const lineEnd = cm.getLineEnd(line, true);
           cm.setCursor(lineEnd);
           cm.replaceSelection(this.register.text);
-          cm.setCursor(cm.findFirstNonBlank());
+          cm.setCursor(cm.findFirstNonBlank(cm.getCursor().line));
         } else {
           if (this.visualMode) {
             // in visual mode, include the character the cursor is on in the selected range
-            const range = cm.getSelectionVisual();
+            const sel = cm.listSelections()[0];
+            const range = cm.getSelectionVisual(sel);
             cm.setSelection(range.anchor, range.head);
           } else {
-            cm.setCursor(cm.getCursorOffset(1));
+            cm.setCursor(cu.offsetCursor(cm.getCursor(), 1));
           }
           cm.replaceSelection(this.register.text);
         }
@@ -393,6 +420,12 @@ export default class VimKeyMap {
   };
 
   processKeyNonInsert = (cm, key, context) => {
+    if (ku.isNumeric(key)) {
+      this.inputState.setRepeat(parseInt(key));
+      this.inputState.popKeyBuffer();
+      return () => {};
+    }
+
     const match = commandSearch(key, context, this.inputState);
     console.log(match.type);
     switch (match.type) {
@@ -404,12 +437,12 @@ export default class VimKeyMap {
       case 'full':
         break;
       default:
-        return;
+        return () => {};
     }
 
     if (!match.command) {
       this.inputState.initAll();
-      return;
+      return () => {};
     }
 
     const commands = [];

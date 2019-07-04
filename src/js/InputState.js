@@ -10,6 +10,7 @@ export default class InputState {
     this.initOperator();
     this.initKeyBuffer();
     this.initKeySeq();
+    this.initRepeat();
   };
 
   initMotion = () => {
@@ -34,8 +35,16 @@ export default class InputState {
     this.keySeq = [];
   };
 
+  initRepeat = () => {
+    this.repeat = 1;
+  };
+
   appendKeyBuffer = key => {
     this.keyBuffer.push(key);
+  };
+
+  popKeyBuffer = () => {
+    this.keyBuffer.pop();
   };
 
   appendKeySeq = key => {
@@ -72,5 +81,9 @@ export default class InputState {
 
   setLastKey = key => {
     this.lastKey = key;
+  };
+
+  setRepeat = repeat => {
+    this.repeat = repeat;
   };
 }

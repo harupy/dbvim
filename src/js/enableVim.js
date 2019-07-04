@@ -26,16 +26,17 @@ export default () => {
 
       // adjust the cursor position
       const { line, ch } = cm.getCursor();
-      if (ch == cm.getLineLength()) {
-        cm.setCursor({ line: line, length, ch: cm.getLastChAt(line) });
+      if (ch == cm.getLineLength(line)) {
+        cm.setCursor({ line, ch: ch - 1 });
       }
 
       // add the vim keymap
       cm.addKeyMap(vimKeyMap);
       enterVimMode(cm);
-    } else if (!cm.state.keyMaps[0].insertMode) {
-      if (cm.isLineEnd(true)) {
-        cm.setCursor(cm.getLineEnd());
+    } else if (cm.state.keyMaps[0].normalMode) {
+      const cur = cm.getCursor();
+      if (cm.isLineEnd(cur, true)) {
+        cm.setCursor(cm.getLineEnd(cur.line));
         cu.enableFatCursor();
       }
     }

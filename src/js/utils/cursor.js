@@ -53,7 +53,7 @@ export const isCursorEqual = (cur1, cur2) => {
   return cur1.line === cur2.line && cur1.ch === cur2.ch;
 };
 
-export const adjustSelection = (oldAnchor, oldHead, newHead) => {
+export const expandSelection = (oldAnchor, oldHead, newHead) => {
   const movedForward = isBefore(oldHead, newHead);
   const wasOverlapped = isCursorEqual(oldHead, oldAnchor);
 

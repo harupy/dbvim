@@ -1,5 +1,8 @@
 import * as cu from './utils/cursor';
 
+const wordSeparator = '\\\\()"\':,.;<>~!@#$%^&*|+=[\\]{}`?-';
+const wordRegexp = new RegExp(`([^\\s${wordSeparator}]+|[${wordSeparator}]+)`, 'ug');
+
 const clip = function(x, lower, upper) {
   return Math.min(upper, Math.max(lower, x));
 };
@@ -33,88 +36,154 @@ const escapeRegExp = string => {
 };
 
 const funcs = {
-  getCursorOffset: function(chs = 0, lines = 0) {
-    return cu.offsetCursor(this.getCursor(), chs, lines);
+  isDocumentEmpty: function() {
+    const lastLine = this.lastLine();
+    const lastLineLength = this.getLine(lastLine);
+    return lastLine === 0 && lastLineLength === 0;
   },
 
-  getCursorChar: function() {
-    // Return the character the cursor is on
-    const cur = this.getCursor();
-    return this.getLineAt(cur.line).charAt(cur.ch);
+  isEmptyLine: function(line) {
+    return !/\S/.test(this.getLine(line));
   },
 
-  getCh: function() {
-    return this.getCursor().ch;
+  isSingleLine: function() {
+    return this.lastLine() === 0;
   },
 
-  _getLine: function() {
-    const { line } = this.getCursor();
-    return line;
+  isFirstLine: function(line) {
+    return this.firstLine() === line;
   },
 
-  getLineAt: function(line) {
-    return this.getLine(line);
+  isLastLine: function(line) {
+    return this.lastLine() === line;
   },
 
-  getLastChar: function() {
-    return this.getLineAt(this._getLine()).slice(-1)[0];
+  getLineBegin: function(line) {
+    return { line, ch: 0 };
   },
 
-  getLineLength: function() {
-    return this.getLineAt(this._getLine()).length;
+  getLineEnd: function(line, beyond = false) {
+    const offset = beyond ? 0 : -1;
+    const lineLength = this.getLineLength(line);
+    return { line, ch: lineLength + offset };
   },
 
-  getLineLengthAt: function(line) {
-    return this.getLineAt(line).length;
+  findFirstNonBlank: function(line) {
+    const match = /\S/.exec(this.getLine(line));
+    return { line, ch: match ? match.index : 0 };
   },
 
-  getLastCh: function() {
-    return this.getLineLength() - 1;
+  isLineBegin: function(ch) {
+    return ch === 0;
   },
 
-  getLastChAt: function(line) {
-    return this.getLineLengthAt(line) - 1;
+  isLineEnd: function(cur, beyond = false) {
+    const { line, ch } = cur;
+    const offset = beyond ? 0 : -1;
+    const lineLength = this.getLineLength(line);
+    return ch === lineLength + offset;
   },
 
-  getCharOffset: function(offset = 0) {
-    const { ch, line } = this.getCursor();
-    return this.getLineAt(line).charAt(ch + offset);
+  getDocumentBegin: function() {
+    return { line: 0, ch: 0 };
   },
 
-  getLineOffset: function(offset = 0) {
-    const { line } = this.getCursor();
-    return this.getLineAt(line + offset);
+  getDocumentEnd: function(beyond = false) {
+    const offset = beyond ? 0 : -1;
+    const lastLine = this.lastLine();
+    const lastLineLength = this.getLineLength(lastLine);
+    const ch = lastLineLength ? lastLineLength + offset : 0;
+    return { line: lastLine, ch };
   },
 
-  getRight: function(beyond = false) {
-    const { line, ch } = this.getCursor();
-    if (this.isEmpty()) {
+  isDocumentBegin: function(cur) {
+    return cur.ch === 0 && cur.line === 0;
+  },
+
+  isDocumentEnd: function(cur, beyond = false) {
+    const { line, ch } = this.getDocumentEnd(beyond);
+    return cur.line === line && cur.ch === ch;
+  },
+
+  getLastCh: function(line) {
+    const lineLength = this.getLineLength(line);
+    return lineLength ? lineLength - 1 : 0;
+  },
+
+  getLineLength: function(line) {
+    return this.getLine(line).length;
+  },
+
+  getIndent: function(line) {
+    return this.getLine(line).match(/^\s*/)[0];
+  },
+
+  getIndentLength: function(line) {
+    return this.getIndent(line).length;
+  },
+
+  getLineAbove: function(cur, beyond = false) {
+    const { line, ch } = cur;
+
+    if (this.isFirstLine(line)) {
+      const firstLineLength = this.getLineLength(line);
+      const offset = firstLineLength === 0 ? 0 : beyond ? 0 : -1;
+      return { line, ch: firstLineLength + offset };
+    }
+
+    const lineAbove = line - 1;
+    const lineLengthAbove = this.getLineLength(lineAbove);
+    const offset = lineLengthAbove === 0 ? 0 : beyond ? 0 : -1;
+    const newCh = Math.min(ch, lineLengthAbove + offset);
+    return { line: lineAbove, ch: newCh };
+  },
+
+  getLineBelow: function(cur, beyond = false) {
+    const { line, ch } = cur;
+
+    if (this.isLastLine(line)) {
+      const lastLineLength = this.getLineLength(line);
+      const offset = lastLineLength === 0 ? 0 : beyond ? 0 : -1;
+      return { line, ch: lastLineLength + offset };
+    }
+
+    const lineBelow = line + 1;
+    const lineLengthBelow = this.getLineLength(lineBelow);
+    const offset = lineLengthBelow === 0 ? 0 : beyond ? 0 : -1;
+    const newCh = Math.min(ch, lineLengthBelow + offset);
+    return { line: lineBelow, ch: newCh };
+  },
+
+  getRight: function(cur, beyond = false) {
+    const { line, ch } = cur;
+    const offset = beyond ? 1 : 0;
+    if (this.isDocumentEmpty()) {
       return { line, ch };
     }
 
-    if (this.isLineEnd(beyond)) {
-      const lastCh = this.getLastCh();
-      if (this.isLastLine()) {
-        return beyond ? { line, ch: lastCh + 1 } : { line, ch: lastCh };
+    if (this.isLineEnd(cur, beyond)) {
+      if (this.isLastLine(line)) {
+        return { line, ch: ch + offset };
       } else {
         return { line: line + 1, ch: 0 };
       }
     }
+
     return { line, ch: ch + 1 };
   },
 
-  getLeft: function(throughLines = true) {
-    const { line, ch } = this.getCursor();
+  getLeft: function(cur, throughLines = true) {
+    const { line, ch } = cur;
 
-    if (this.isLineBegin()) {
+    if (this.isLineBegin(ch)) {
       if (!throughLines) {
         return { line, ch };
       }
 
-      if (this.isFirstLine()) {
+      if (this.isFirstLine(line)) {
         return this.getDocumentBegin();
       } else {
-        const lastChAbove = this.getLastChAt(line - 1);
+        const lastChAbove = this.getLastCh(line - 1);
         return { line: line - 1, ch: lastChAbove };
       }
     }
@@ -122,135 +191,8 @@ const funcs = {
     return { line, ch: ch - 1 };
   },
 
-  getLineBelow: function(beyond) {
-    const { line, ch } = this.getCursor();
-    const lastLine = this.lastLine();
-    const newLine = line + 1;
-    const newCh =
-      newLine > lastLine
-        ? this.getLineLengthAt(lastLine) + (beyond ? 0 : -1)
-        : Math.min(ch, this.getLineLengthAt(newLine) + (beyond ? 0 : -1));
-    return { line: Math.min(lastLine, newLine), ch: newCh };
-  },
-
-  getLineAbove: function(beyond) {
-    const { line, ch } = this.getCursor();
-    const firstLine = this.firstLine();
-    const newLine = line - 1;
-    const newCh =
-      newLine < firstLine ? 0 : Math.min(ch, this.getLineLengthAt(newLine) + (beyond ? 0 : -1));
-    return { line: Math.max(0, newLine), ch: newCh };
-  },
-
-  getLineBegin: function() {
-    return { line: this._getLine(), ch: 0 };
-  },
-
-  getLineEnd: function(beyond = false) {
-    const line = this._getLine();
-    return { line, ch: this.getLineLengthAt(line) + (beyond ? 0 : -1) };
-  },
-
-  getDocumentEnd: function(beyond = false) {
-    const lastLine = this.lastLine();
-    const lastLineCh = this.getLastChAt(lastLine);
-    return { line: lastLine, ch: lastLineCh + (beyond ? 1 : 0) };
-  },
-
-  getDocumentBegin: function() {
-    return { line: 0, ch: 0 };
-  },
-
-  getSelectionVisual: function() {
-    const { anchor, head } = this.listSelections()[0];
-    const headChOffset = cu.isBefore(head, anchor) ? 0 : 1;
-    return { anchor, head: cu.offsetCursor(head, headChOffset) };
-  },
-
-  getIndentAt: function(line) {
-    return this.getLineAt(line).match(/^\s*/)[0];
-  },
-
-  getIndent: function() {
-    return this.getLineAt(this._getLine()).match(/^\s*/)[0];
-  },
-
-  getIndentLength: function() {
-    return this.getIndent().match(/^\s*/)[0].length;
-  },
-
-  getIndentLengthAt: function(line) {
-    return this.getIndentAt(line).match(/^\s*/)[0].length;
-  },
-
-  expandToLine: function() {
-    const line = this._getLine();
-    const lineLength = this.getLineLength();
-
-    if (this.isSingleLine()) {
-      const anchor = { line: 0, ch: 0 };
-      const head = { line, ch: this.getLineLength() };
-      return { anchor, head };
-    }
-
-    if (this.isLastLine()) {
-      const lineLengthAbove = this.getLineLengthAt(line - 1);
-      const anchor = { line: line - 1, ch: lineLengthAbove };
-      const head = { line, ch: lineLength };
-      return { anchor, head };
-    }
-    const anchor = { line, ch: 0 };
-    const head = { line: line + 1, ch: 0 };
-    return { anchor, head };
-  },
-
-  isFirstLine: function() {
-    return this.getCursor().line === this.firstLine();
-  },
-
-  isLastLine: function() {
-    return this._getLine() === this.lastLine();
-  },
-
-  isLineBegin: function() {
-    return this.getCh() === 0;
-  },
-
-  isLineEnd: function(beyond = false) {
-    return beyond ? this.getCh() === this.getLineLength() : this.getCh() === this.getLastCh();
-  },
-
-  isDocumentBegin: function() {
-    return this.isFirstLine() && this.isLineBegin();
-  },
-
-  isDocumentEnd: function() {
-    return this.isLastLine() && this.isLineEnd();
-  },
-
-  isEmpty: function() {
-    return this.getLineLength() === 0;
-  },
-
-  isEmptyLine: function(line) {
-    return !/\S/.test(this.getLineAt(line));
-  },
-
-  isSingleLine: function() {
-    return this.lastLine() === 0;
-  },
-
-  findFirstNonBlankAt: function(line) {
-    const match = /\S/.exec(this.getLineAt(line));
-    return { line, ch: match ? match.index : 0 };
-  },
-
-  findFirstNonBlank: function() {
-    return this.findFirstNonBlankAt(this._getLine());
-  },
-
-  findParagraphBelow: function(beyond) {
-    const line = this._getLine();
+  findParagraphBelow: function(cur, beyond = false) {
+    const { line } = cur;
     let l = line;
     while (this.isEmptyLine(l) && l <= this.lastLine()) {
       l++;
@@ -266,8 +208,8 @@ const funcs = {
     return { line: l, ch: 0 };
   },
 
-  findParagraphAbove: function() {
-    const line = this._getLine();
+  findParagraphAbove: function(cur) {
+    const { line } = cur;
     let l = line;
     while (this.isEmptyLine(l) && l > this.firstLine()) {
       l--;
@@ -280,17 +222,13 @@ const funcs = {
     return { line: l, ch: 0 };
   },
 
-  findWordBeginRight: function(inclusive = false, throughLines = true) {
-    const { line, ch } = this.getCursor();
-
-    const wordSeparator = '\\\\()"\':,.;<>~!@#$%^&*|+=[\\]{}`?-';
-    const regexp = new RegExp(`([^\\s${wordSeparator}]+|[${wordSeparator}]+)`, 'ug');
-
+  findWordBeginRight: function(cur, inclusive = false, throughLines = true) {
+    const { line, ch } = cur;
     let l = line;
 
     while (l <= this.lastLine()) {
-      const lineStr = this.getLineAt(l);
-      const positions = getBeginPositions(lineStr, regexp);
+      const lineStr = this.getLine(l);
+      const positions = getBeginPositions(lineStr, wordRegexp);
       const wordBegin = positions.filter(
         idx => (inclusive ? idx >= ch : idx > ch) || l !== line,
       )[0];
@@ -309,17 +247,14 @@ const funcs = {
     return this.getDocumentEnd();
   },
 
-  findWordBeginLeft: function(inclusive = false, throughLines = true) {
-    const { line, ch } = this.getCursor();
-
-    const wordSeparator = '\\\\()"\':,.;<>~!@#$%^&*|+=[\\]{}`?-';
-    const regexp = new RegExp(`([^\\s${wordSeparator}]+|[${wordSeparator}]+)`, 'ug');
+  findWordBeginLeft: function(cur, inclusive = false, throughLines = true) {
+    const { line, ch } = cur;
 
     let l = line;
 
     while (l >= this.firstLine()) {
-      const lineStr = this.getLineAt(l);
-      const positions = getBeginPositions(lineStr, regexp);
+      const lineStr = this.getLine(l);
+      const positions = getBeginPositions(lineStr, wordRegexp);
       const wordBegin = positions
         .filter(idx => (inclusive ? idx <= ch : idx < ch) || l !== line)
         .reverse()[0];
@@ -338,16 +273,14 @@ const funcs = {
     return this.getDocumentBegin();
   },
 
-  findWordEndRight: function(inclusive = false, throughLines = true) {
-    const { line, ch } = this.getCursor();
-    const wordSeparator = '\\\\()"\':,.;<>~!@#$%^&*|+=[\\]{}`?-';
-    const regexp = new RegExp(`([^\\s${wordSeparator}]+|[${wordSeparator}]+)`, 'ug');
+  findWordEndRight: function(cur, inclusive = false, throughLines = true) {
+    const { line, ch } = cur;
 
     let l = line;
 
     while (l <= this.lastLine()) {
-      const lineStr = this.getLineAt(l);
-      const positions = getEndPositions(lineStr, regexp);
+      const lineStr = this.getLine(l);
+      const positions = getEndPositions(lineStr, wordRegexp);
       const wordEnd = positions.filter(idx => (inclusive ? idx >= ch : idx > ch) || l !== line)[0];
 
       if (wordEnd !== undefined) {
@@ -364,16 +297,13 @@ const funcs = {
     return this.getDocumentEnd();
   },
 
-  findWordEndLeft: function(inclusive = false) {
-    const { line, ch } = this.getCursor();
-    const wordSeparator = '\\\\()"\':,.;<>~!@#$%^&*|+=[\\]{}`?-';
-    const regexp = new RegExp(`([^\\s${wordSeparator}]+|[${wordSeparator}]+)`, 'ug');
-
+  findWordEndLeft: function(cur, inclusive = false, throughLines = true) {
+    const { line, ch } = cur;
     let l = line;
 
     while (l >= this.firstLine()) {
-      const lineStr = this.getLineAt(l);
-      const positions = getEndPositions(lineStr, regexp);
+      const lineStr = this.getLine(l);
+      const positions = getEndPositions(lineStr, wordRegexp);
       const wordEnd = positions
         .filter(idx => (inclusive ? idx <= ch : idx < ch) || l !== line)
         .reverse()[0];
@@ -382,69 +312,26 @@ const funcs = {
         return { line: l, ch: wordEnd };
       }
 
+      if (!throughLines) {
+        const indentLength = this.getIndentLength(line);
+        return { line: l, ch: indentLength };
+      }
+
       l--;
     }
 
     return this.getDocumentBegin();
   },
 
-  findCharacter: function(motionArgs) {
-    const { line, ch } = this.getCursor();
-    const { forward, charToMatch } = motionArgs;
+  findCharacter: function(cur, forward, charToMatch) {
+    const { line, ch } = cur;
     const regexp = RegExp(escapeRegExp(charToMatch), 'ug');
-    const positions = getBeginPositions(this.getLineAt(line), regexp);
+    const positions = getBeginPositions(this.getLine(line), regexp);
     const newCh = positions.filter(p => (forward ? ch < p : ch > p)).slice(forward ? 0 : -1)[0];
     return newCh ? { line, ch: newCh } : null;
   },
 
-  findWord: function(inner = true) {
-    let start, end;
-    if (inner) {
-      start = this.findWordBeginLeft(true);
-      end = this.findWordEndRight(true);
-      return { anchor: start, head: cu.offsetCursor(end, 1) };
-    } else {
-      const cur = this.getCursor();
-      end = this.findWordBeginRight(false, false);
-      const containsSpace = this.getRange(cur, end).indexOf(' ') > -1;
-      start = containsSpace ? this.findWordBeginLeft(true) : this.findWordEndLeft();
-      const offset = containsSpace ? 0 : start.ch === 0 ? 0 : 1;
-      return { anchor: cu.offsetCursor(start, offset), head: end };
-    }
-  },
-
-  findSurrounding: function(motionArgs) {
-    const mirroredPairs = {
-      '(': ')',
-      ')': '(',
-      '{': '}',
-      '}': '{',
-      '[': ']',
-      ']': '[',
-      '<': '>',
-      '>': '<',
-    };
-    const selfPaired = { "'": true, '"': true, '`': true };
-    let char = motionArgs.charToMatch;
-    if (char == 'b') {
-      char = '(';
-    } else if (char == 'B') {
-      char = '{';
-    }
-
-    const { inner } = motionArgs;
-
-    if (mirroredPairs[char]) {
-      return this.findCompanionObject(char, inner);
-    } else if (selfPaired[char]) {
-      return this.findQuoteOrBacktick(char, inner);
-    } else if (char === 'w') {
-      return this.findWord(inner);
-    }
-  },
-
-  findCompanionObject: function(symb, inner) {
-    const cur = this.getCursor();
+  findCompanionObject: function(cur, symb, inner) {
     let start, end;
 
     const bracketRegexp = {
@@ -499,8 +386,7 @@ const funcs = {
     return { anchor: start, head: end };
   },
 
-  findQuoteOrBacktick: function(symb, inner) {
-    let cur = this.getCursor();
+  findQuoteOrBacktick: function(cur, symb, inner) {
     let line = this.getLine(cur.line);
     const chars = line.split('');
     const firstIndex = chars.indexOf(symb);
@@ -552,6 +438,95 @@ const funcs = {
       anchor: { line: cur.line, ch: start },
       head: { line: cur.line, ch: end },
     };
+  },
+
+  findWord: function(cur, inner = true) {
+    let start, end;
+    const cursorChar = this.getRange(cur, cu.offsetCursor(cur, 1));
+
+    if (cursorChar === ' ') {
+      start = this.findWordEndLeft(cur, true);
+      end = this.findWordBeginRight(cur, true);
+      return { anchor: cu.offsetCursor(start, 1), head: end };
+    }
+
+    if (inner) {
+      start = this.findWordBeginLeft(cur, true);
+      end = this.findWordEndRight(cur, true);
+      return { anchor: start, head: cu.offsetCursor(end, 1) };
+    } else {
+      end = this.findWordBeginRight(cur, false, false);
+      const containsSpace = this.getRange(cur, end).indexOf(' ') > -1;
+
+      start = containsSpace
+        ? this.findWordBeginLeft(cur, true)
+        : this.findWordEndLeft(cur, false, false);
+      const indentLength = this.getIndentLength(cur.line);
+      const offset = containsSpace ? 0 : start.ch === indentLength ? 0 : 1;
+      return { anchor: cu.offsetCursor(start, offset), head: end };
+    }
+  },
+
+  findSurrounding: function(cur, inner, charToMatch) {
+    const mirroredPairs = {
+      '(': ')',
+      ')': '(',
+      '{': '}',
+      '}': '{',
+      '[': ']',
+      ']': '[',
+      '<': '>',
+      '>': '<',
+    };
+    const selfPaired = { "'": true, '"': true, '`': true };
+    let char = charToMatch;
+    if (char == 'b') {
+      char = '(';
+    } else if (char == 'B') {
+      char = '{';
+    }
+
+    if (mirroredPairs[char]) {
+      return this.findCompanionObject(cur, char, inner);
+    } else if (selfPaired[char]) {
+      return this.findQuoteOrBacktick(cur, char, inner);
+    } else if (char === 'w') {
+      return this.findWord(cur, inner);
+    }
+  },
+
+  expandToLine: function(cur, repeat) {
+    const { line } = cur;
+    const lineLength = this.getLineLength(line);
+
+    if (this.isSingleLine()) {
+      const anchor = { line: 0, ch: 0 };
+      const head = { line, ch: lineLength };
+      return { anchor, head };
+    }
+
+    const isFirstLine = this.isFirstLine(line);
+    const lastLine = this.lastLine();
+    const lineTo = Math.min(lastLine, line + repeat - 1);
+    const containsLastLine = lineTo >= lastLine;
+
+    if (isFirstLine) {
+      const head = containsLastLine ? this.getDocumentEnd(true) : { line: lineTo + 1, ch: 0 };
+      return { anchor: this.getDocumentBegin(), head: head };
+    }
+
+    const anchor = { line: line - 1, ch: this.getLineLength(line - 1) };
+    const head = containsLastLine
+      ? this.getDocumentEnd(true)
+      : { line: lineTo, ch: this.getLineLength(lineTo) };
+
+    return { anchor, head };
+  },
+
+  getSelectionVisual: function(sel) {
+    const { anchor, head } = sel;
+    const headChOffset = cu.isBefore(head, anchor) ? 0 : 1;
+    return { anchor, head: cu.offsetCursor(head, headChOffset) };
   },
 };
 
