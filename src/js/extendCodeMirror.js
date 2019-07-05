@@ -126,9 +126,7 @@ const funcs = {
     const { line, ch } = cur;
 
     if (this.isFirstLine(line)) {
-      const firstLineLength = this.getLineLength(line);
-      const offset = firstLineLength === 0 ? 0 : beyond ? 0 : -1;
-      return { line, ch: firstLineLength + offset };
+      return { line, ch: 0 };
     }
 
     const lineAbove = line - 1;
