@@ -81,7 +81,7 @@ const funcs = {
     const { line, ch } = cur;
     const offset = beyond ? 0 : -1;
     const lineLength = this.getLineLength(line);
-    return ch === lineLength + offset;
+    return ch === lineLength + offset || lineLength === 0;
   },
 
   getDocumentBegin: function() {
