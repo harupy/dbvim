@@ -337,7 +337,7 @@ export default class VimKeyMap {
 
           switch (actionArgs.insertAt) {
             case 'charAfter':
-              cm.setCursor(cm.getRight(cur, true));
+              cm.setCursor(cm.getRight(cur, true, false));
               break;
             case 'lineEnd':
               cm.setCursor(cm.getLineEnd(cur.line, true));

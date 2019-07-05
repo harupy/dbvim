@@ -65,7 +65,7 @@ const funcs = {
   getLineEnd: function(line, beyond = false) {
     const offset = beyond ? 0 : -1;
     const lineLength = this.getLineLength(line);
-    return { line, ch: lineLength + offset };
+    return lineLength === 0 ? { line, ch: 0 } : { line, ch: lineLength + offset };
   },
 
   findFirstNonBlank: function(line) {
@@ -154,7 +154,7 @@ const funcs = {
     return { line: lineBelow, ch: newCh };
   },
 
-  getRight: function(cur, beyond = false) {
+  getRight: function(cur, beyond = false, throughLines = true) {
     const { line, ch } = cur;
     const offset = beyond ? 1 : 0;
     if (this.isDocumentEmpty()) {
@@ -162,6 +162,10 @@ const funcs = {
     }
 
     if (this.isLineEnd(cur, beyond)) {
+      if (!throughLines) {
+        return this.getLineEnd(line, true);
+      }
+
       if (this.isLastLine(line)) {
         return { line, ch: ch + offset };
       } else {
