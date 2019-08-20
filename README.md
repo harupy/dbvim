@@ -6,7 +6,7 @@ A Chrome extension to enable Vim on Databricks.
 
 1. Clone this repository
 1. `npm install`
-1. `npm build`
+1. `npm run build`
 1. Open `chrome://extensions` on Chrome
 1. Enable `Developer mode` if it's disabled
 1. Click `Load unpacked`
