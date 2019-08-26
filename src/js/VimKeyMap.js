@@ -266,9 +266,16 @@ export default class VimKeyMap {
 
     [...Array(inputState.repeat)].forEach(() => {
       const next = motion(_cm, cur, cmd.motionArgs);
+      if (!next) return;
+
       motionResults.push(next);
-      cur = next.head ? next.head : next;
+      cur = next.head ? next.head : next; // check if next is a range or a cursor
     });
+
+    if (motionResults.length === 0) {
+      inputState.initAll();
+      return;
+    }
 
     const motionResult = motionResults[0].head
       ? { anchor: motionResults[0].anchor, head: motionResults.slice(-1)[0].head }
