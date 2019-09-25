@@ -2,6 +2,8 @@
 
 A Chrome extension to enable Vim on Databricks.
 
+![demo](https://user-images.githubusercontent.com/17039389/65558988-c45a5c00-df73-11e9-9b14-5722e9c1e458.gif)
+
 ## Installation
 
 1. Clone this repository
@@ -19,12 +21,11 @@ A Chrome extension to enable Vim on Databricks.
 
 ## Other Extensions
 
-| Extension Name                                 | Purpose                                  |
-| :--------------------------------------------- | :--------------------------------------- |
-| [DBEditor](https://github.com/harupy/dbeditor) | Provide dark theme for Databricks        |
-| [DBDark](https://github.com/harupy/dbdark)     | Provide dark theme for Databricks        |
-| [DBToc](https://github.com/harupy/dbtoc)       | Create a table of contents automatically |
-| [DBHide](https://github.com/harupy/dbhide)     | Hide unnecessary code and cells          |
+| Extension                                        | Description                              |
+| :----------------------------------------------- | :--------------------------------------- |
+| [DBSnippet](https://github.com/harupy/dbsnippet) | Provide code snippets for Databricks     |
+| [DBDark](https://github.com/harupy/dbdark)       | Dark theme for Databricks                |
+| [DBToc](https://github.com/harupy/dbtoc)         | Create a table of contents automatically |
 
 ## Acknowledgements
 
