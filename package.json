@@ -15,14 +15,14 @@
     "@babel/core": "^7.4.5",
     "@babel/preset-env": "^7.4.5",
     "babel-eslint": "^10.0.1",
-    "babel-loader": "^8.0.6",
+    "babel-loader": "^8.3.0",
     "babel-plugin-transform-class-properties": "^6.24.1",
     "dotenv": "^8.0.0",
     "eslint": "^5.16.0",
-    "eslint-loader": "^2.1.2",
+    "eslint-loader": "^4.0.2",
     "jest": "^24.8.0",
     "puppeteer": "^1.18.1",
-    "webpack": "^4.34.0",
-    "webpack-cli": "^3.3.4"
+    "webpack": "^5.75.0",
+    "webpack-cli": "^5.0.1"
   }
 }
